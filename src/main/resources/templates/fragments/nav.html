@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="nav">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --app-sidebar-width: 264px;
+            --app-sidebar-bg: #0b1522;
+            --app-sidebar-bg-elevated: #142236;
+            --app-sidebar-text: #9fb3cc;
+            --app-sidebar-text-strong: #ffffff;
+            --app-accent: #4A9EFF;
+        }
+
+        /* Reserva el espacio de la sidebar en el flujo normal del documento,
+           para que .container siga centrandose por si solo respecto al
+           espacio libre (viewport menos la sidebar). */
+        body {
+            padding-left: var(--app-sidebar-width);
+        }
+
+        /* ---------------------------- Sidebar ---------------------------- */
+        .app-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: var(--app-sidebar-width);
+            background: var(--app-sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            z-index: 1040;
+        }
+
+        /* BRAND */
+        .app-sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: .9rem;
+            padding: 1.5rem 1.25rem 1.6rem;
+            background: linear-gradient(180deg, var(--app-sidebar-bg-elevated), var(--app-sidebar-bg));
+            border-bottom: 2px solid rgba(74, 158, 255, .22);
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+
+        .app-sidebar-brand img {
+            height: 52px;
+            width: 52px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .app-sidebar-brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: .18rem;
+        }
+
+        .app-sidebar-brand-eyebrow {
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--app-sidebar-text);
+        }
+
+        .app-sidebar-brand-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: var(--app-sidebar-text-strong);
+        }
+        /* END BRAND */
+
+        .app-sidebar-nav {
+            flex: 1 1 auto;
+            padding: .9rem .75rem;
+            display: flex;
+            flex-direction: column;
+            gap: .2rem;
+            overflow-y: auto;
+        }
+
+        .app-nav-link {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            padding: .62rem .85rem;
+            border-radius: .5rem;
+            color: var(--app-sidebar-text);
+            text-decoration: none;
+            font-size: .92rem;
+            font-weight: 500;
+            border-left: 3px solid transparent;
+            transition: background-color .15s ease, color .15s ease;
+        }
+
+        .app-nav-link i {
+            font-size: 1.05rem;
+            width: 1.25rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .app-nav-link:hover {
+            background: var(--app-sidebar-bg-elevated);
+            color: var(--app-sidebar-text-strong);
+        }
+
+        .app-nav-link.active {
+            background: var(--app-sidebar-bg-elevated);
+            color: var(--app-sidebar-text-strong);
+            border-left-color: var(--app-accent);
+        }
+
+        .app-nav-link.active i {
+            color: var(--app-accent);
+        }
+
+        .app-sidebar-foot {
+            padding: .9rem 1.25rem 1.1rem;
+            font-size: .74rem;
+            color: #6b7278;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+            flex-shrink: 0;
+        }
+    </style>
+
+    <aside class="app-sidebar">
+        <a class="app-sidebar-brand" th:href="@{/}">
+            <img src="/images/escudo.png" alt="Escudo del club" onerror="this.style.display='none'"/>
+            <span class="app-sidebar-brand-text">
+                <span class="app-sidebar-brand-eyebrow">Club Atlético</span>
+                <span class="app-sidebar-brand-name">Talleres de Las Acequias</span>
+            </span>
+        </a>
+
+        <nav class="app-sidebar-nav">
+            <a class="app-nav-link" th:href="@{/dashboard}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+            <a class="app-nav-link" th:href="@{/socios}"><i class="bi bi-people-fill"></i><span>Socios</span></a>
+            <a class="app-nav-link" th:href="@{/cuotas}"><i class="bi bi-cash-coin"></i><span>Cuotas</span></a>
+            <a class="app-nav-link" th:href="@{/pagos}"><i class="bi bi-credit-card-2-front-fill"></i><span>Pagos</span></a>
+            <a class="app-nav-link" th:href="@{/configuracion}"><i class="bi bi-gear-fill"></i><span>Configuración</span></a>
+        </nav>
+
+        <div class="app-sidebar-foot">Gestión de socios</div>
+    </aside>
+
+    <script>
+        (function () {
+            var path = window.location.pathname;
+            document.querySelectorAll('.app-nav-link').forEach(function (link) {
+                var linkPath = link.pathname;
+                var isMatch = path === linkPath || (linkPath !== '/' && path.indexOf(linkPath + '/') === 0);
+                if (isMatch) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+    </script>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Pagos - Club</title>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <link rel="stylesheet"
+          th:href="@{/css/styles.css}"/>
+</head>
+
+<body>
+
+<header th:replace="~{fragments/nav :: nav}"></header>
+
+<main class="container">
+
+    <!-- Título -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">
+            Pagos
+        </h1>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="alert alert-success"
+         th:if="${mensajeExito}"
+         th:text="${mensajeExito}">
+    </div>
+
+    <div class="alert alert-danger"
+         th:if="${mensajeError}"
+         th:text="${mensajeError}">
+    </div>
+
+    <!-- Filtros -->
+    <form method="get"
+          th:action="@{/pagos}"
+          class="row g-2 mb-4">
+
+        <!-- Socio -->
+        <div class="col-auto">
+            <input type="text"
+                   class="form-control"
+                   name="q"
+                   placeholder="Buscar socio..."
+                   th:value="${q}"/>
+        </div>
+
+        <!-- Mes -->
+        <div class="col-auto">
+            <select class="form-select" name="mes">
+
+                <option value="" th:selected="${mes == null}">Todos los meses</option>
+                <option value="1" th:selected="${mes == 1}">Enero</option>
+                <option value="2" th:selected="${mes == 2}">Febrero</option>
+                <option value="3" th:selected="${mes == 3}">Marzo</option>
+                <option value="4" th:selected="${mes == 4}">Abril</option>
+                <option value="5" th:selected="${mes == 5}">Mayo</option>
+                <option value="6" th:selected="${mes == 6}">Junio</option>
+                <option value="7" th:selected="${mes == 7}">Julio</option>
+                <option value="8" th:selected="${mes == 8}">Agosto</option>
+                <option value="9" th:selected="${mes == 9}">Septiembre</option>
+                <option value="10" th:selected="${mes == 10}">Octubre</option>
+                <option value="11" th:selected="${mes == 11}">Noviembre</option>
+                <option value="12" th:selected="${mes == 12}">Diciembre</option>
+
+            </select>
+        </div>
+
+        <!-- Año -->
+        <div class="col-auto">
+            <input type="number"
+                   class="form-control"
+                   name="anio"
+                   placeholder="Año de la cuota"
+                   th:value="${anio}"
+                   min="2000"
+                   max="2100"
+                   style="width: 150px;"/>
+        </div>
+
+        <!-- Fecha de pago -->
+        <div class="col-auto">
+            <input type="date"
+                   class="form-control"
+                   name="fecha"
+                   th:value="${fecha}"/>
+        </div>
+
+        <!-- Filtrar -->
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-funnel me-1"></i>
+                Filtrar
+            </button>
+        </div>
+
+        <!-- Limpiar -->
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary" th:href="@{/pagos}">
+                <i class="bi bi-x-circle me-1"></i>
+                Limpiar filtros
+            </a>
+        </div>
+
+        <!-- Nuevo pago -->
+        <div class="col-auto ms-auto">
+            <a class="btn btn-primary" th:href="@{/pagos/nuevo}">
+                <i class="bi bi-plus-circle me-1"></i>
+                Registrar pago
+            </a>
+        </div>
+
+    </form>
+
+    <!-- ========================================================= -->
+    <!-- TABLA DE PAGOS                                             -->
+    <!-- ========================================================= -->
+
+    <p th:if="${#lists.isEmpty(pagos)}" class="text-muted">
+        No se encontraron pagos con los filtros seleccionados.
+    </p>
+
+    <table class="table table-striped" th:unless="${#lists.isEmpty(pagos)}">
+
+        <thead>
+        <tr>
+            <th>Socio</th>
+            <th>Cuota (periodo)</th>
+            <th>Importe</th>
+            <th>Fecha de pago</th>
+            <th>Medio de pago</th>
+            <th>Acciones</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr th:each="pago : ${pagos}">
+
+            <!-- Socio -->
+            <td>
+                <span th:text="|${pago.cuota.socio.nombre} ${pago.cuota.socio.apellido}|"></span>
+                <span class="text-muted small">
+                    (N&deg; <span th:text="${pago.cuota.socio.numeroSocio}"></span>)
+                </span>
+            </td>
+
+            <!-- Cuota (periodo) -->
+            <td th:text="|${pago.cuota.mes}/${pago.cuota.anio}|"></td>
+
+            <!-- Importe -->
+            <td th:text="|$${pago.importe}|"></td>
+
+            <!-- Fecha de pago -->
+            <td th:text="${pago.fechaPago}"></td>
+
+            <!-- Medio de pago -->
+            <td>
+                <span class="badge bg-info text-dark" th:text="${pago.medioPago}"></span>
+            </td>
+
+            <!-- Acciones -->
+            <td>
+                <a class="btn btn-sm btn-outline-primary"
+                   th:href="@{/pagos/{id}(id=${pago.id})}">
+                    <i class="bi bi-eye"></i>
+                </a>
+
+                <a class="btn btn-sm btn-outline-secondary"
+                   th:href="@{/pagos/{id}/editar(id=${pago.id})}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+
+                <form th:action="@{/pagos/{id}/eliminar(id=${pago.id})}"
+                      method="post" class="d-inline"
+                      data-confirm-title="Anular pago"
+                      data-confirm="¿Anular este pago? La cuota correspondiente volverá a estado PENDIENTE."
+                      data-confirm-button="Anular"
+                      data-confirm-variant="btn-danger">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </td>
+
+        </tr>
+        </tbody>
+
+    </table>
+
+</main>
+
+<!-- Modal de confirmación -->
+<div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>
+
+<!-- Bootstrap -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Modal de confirmación -->
+<script th:src="@{/js/confirm-modal.js}"></script>
+</body>
+</html>

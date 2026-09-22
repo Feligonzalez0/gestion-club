@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+    Modal de confirmación genérico y reutilizable.
+-->
+<div th:fragment="confirmModal">
+    
+    <style>
+        /* Oculta el ícono intruso del JS en el título */
+        #confirmModalTitleText i {
+            display: none !important;
+        }
+
+        /* COLORES Y ESTADOS DINÁMICOS DEL ÍCONO SUPERIOR */
+        #topIconContainer {
+            background-color: rgba(255, 193, 7, 0.12);
+            color: #ffc107;
+        }
+        #iconSuccess {
+            display: none; 
+        }
+        
+        .modal-content:has(#confirmModalAcceptBtn.btn-danger) #topIconContainer {
+            background-color: rgba(220, 53, 69, 0.12) !important;
+            color: #dc3545 !important;
+        }
+        
+        .modal-content:has(#confirmModalAcceptBtn.btn-primary) #topIconContainer {
+            background-color: rgba(13, 110, 253, 0.12) !important;
+            color: #0d6efd !important;
+        }
+
+        .modal-content:has(#confirmModalAcceptBtn.btn-success) #topIconContainer {
+            background-color: rgba(25, 135, 84, 0.12) !important;
+            color: #198754 !important;
+        }
+        .modal-content:has(#confirmModalAcceptBtn.btn-success) #iconWarning {
+            display: none !important; 
+        }
+        .modal-content:has(#confirmModalAcceptBtn.btn-success) #iconSuccess {
+            display: inline-block !important; 
+        }
+
+        /* SOLUCIÓN DEFINITIVA PARA LA SIMETRÍA Y CENTRADO DE BOTONES */
+        .btn-simetricos-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Dos columnas matemáticas de 50% exacto */
+            gap: 16px; /* Separación fija entre botones */
+            width: 100%;
+            max-width: 480px; /* Evita que los botones se estiren hasta los bordes en PC */
+            margin: 0 auto; /* Centra el bloque entero perfectamente al medio del modal */
+        }
+        .btn-simetricos-container .btn {
+            width: 100%;
+            height: 100%; /* Si uno crece en altura, el otro lo copia automáticamente */
+            min-height: 46px; /* Altura mínima para que se vean modernos y cómodos de clickear */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8px 12px;
+            white-space: normal; /* Si el texto del JS es larguísimo, pasa a la línea de abajo sin deformar el ancho */
+        }
+    </style>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg p-2">
+                
+                <!-- Botón de cerrar superior -->
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 z-3 shadow-none" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+
+                <!-- Cuerpo Centralizado -->
+                <div class="modal-body text-center pt-4 pb-2 px-4">
+                    
+                    <div id="topIconContainer" class="d-inline-flex align-items-center justify-content-center rounded-circle mb-4" style="width: 64px; height: 64px;">
+                        <i class="bi bi-exclamation-triangle-fill fs-2" id="iconWarning"></i>
+                        <i class="bi bi-check-circle-fill fs-2" id="iconSuccess"></i>
+                        
+                    </div>
+
+                    <h5 class="fw-bold text-dark mb-2" id="confirmModalTitleText">Confirmar acción</h5>
+                    <p id="confirmModalBodyText" class="text-secondary mb-0 fs-6">¿Estás seguro?</p>
+                </div>
+
+                <!-- Footer de Botones Centrados y Simétricos -->
+                <div class="pb-4 pt-3 w-100 px-3">
+                    <div class="btn-simetricos-container">
+                        <button type="button" class="btn btn-light border fw-medium m-0" data-bs-dismiss="modal">
+                            Cancelar
+                        </button>
+                        <!-- Botón objetivo del JS -->
+                        <button type="button" class="btn btn-danger fw-medium m-0" id="confirmModalAcceptBtn">
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

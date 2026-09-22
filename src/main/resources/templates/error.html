@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="'Error ' + ${status} + ' - Club'">Error - Club</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"/>
+    <style>
+        :root {
+            --app-brandbar-bg: #0b1522;
+            --app-brandbar-text: #9fb3cc;
+            --app-accent: #2f6fe0;
+            --app-warning: #b45309;
+            --app-danger: #dc2626;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- Barra de marca: da contexto al escudo/nombre, como un mini-navbar ---- */
+        .error-brandbar {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            padding: .85rem 1.5rem;
+            background: var(--app-brandbar-bg);
+            flex-shrink: 0;
+        }
+
+        .error-brandbar img {
+            height: 30px;
+            width: 30px;
+            object-fit: contain;
+        }
+
+        .error-brandbar span {
+            font-size: .85rem;
+            font-weight: 600;
+            color: var(--app-brandbar-text);
+            letter-spacing: .01em;
+        }
+
+        /* ---- Contenido: mismo look que el resto del sitio (card clara, sombra suave) ---- */
+        .error-content {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border-radius: .6rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .1);
+            padding: 2.5rem 2rem;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 3rem;
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+
+        .icon-info {
+            color: var(--app-accent);
+        }
+
+        .icon-warning {
+            color: var(--app-warning);
+        }
+
+        .icon-danger {
+            color: var(--app-danger);
+        }
+
+        .error-code {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: #212529;
+            margin: 0 0 .35rem;
+            letter-spacing: -.02em;
+        }
+
+        .error-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #212529;
+            margin: 0 0 .65rem;
+        }
+
+        .error-message {
+            font-size: .93rem;
+            line-height: 1.55;
+            color: #495057;
+            margin: 0 0 .5rem;
+        }
+
+        .error-path {
+            font-size: .78rem;
+            color: #868e96;
+            margin: 0 0 1.6rem;
+            word-break: break-all;
+        }
+
+        .error-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+            margin-top: 1.6rem;
+        }
+
+        .error-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .55rem 1.1rem;
+            border-radius: .5rem;
+            font-size: .88rem;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .error-btn-primary {
+            background: var(--app-accent);
+            color: #ffffff;
+        }
+
+        .error-btn-primary:hover {
+            filter: brightness(1.08);
+            color: #ffffff;
+        }
+
+        .error-btn-secondary {
+            background: #f1f3f5;
+            color: #343a40;
+        }
+
+        .error-btn-secondary:hover {
+            background: #e9ecef;
+            color: #343a40;
+        }
+    </style>
+</head>
+<body>
+
+<div class="error-content">
+    <div class="error-card">
+
+        <div class="error-icon" th:switch="${status}">
+            <i th:case="400" class="bi bi-exclamation-triangle-fill icon-warning"></i>
+            <i th:case="401" class="bi bi-lock-fill icon-warning"></i>
+            <i th:case="403" class="bi bi-shield-lock-fill icon-warning"></i>
+            <i th:case="404" class="bi bi-signpost-split-fill icon-info"></i>
+            <i th:case="405" class="bi bi-slash-circle-fill icon-warning"></i>
+            <i th:case="500" class="bi bi-exclamation-octagon-fill icon-danger"></i>
+            <i th:case="503" class="bi bi-cloud-slash-fill icon-danger"></i>
+            <i th:case="*" class="bi bi-question-circle-fill icon-info"></i>
+        </div>
+
+        <p class="error-code" th:text="${status} ?: '—'">500</p>
+
+        <h1 class="error-title" th:switch="${status}">
+            <span th:case="400">Solicitud inválida</span>
+            <span th:case="401">Necesitás iniciar sesión</span>
+            <span th:case="403">Acceso denegado</span>
+            <span th:case="404">Página no encontrada</span>
+            <span th:case="405">Método no permitido</span>
+            <span th:case="500">Error interno del servidor</span>
+            <span th:case="503">Servicio no disponible</span>
+            <span th:case="*">Ocurrió un error</span>
+        </h1>
+
+        <p class="error-message" th:switch="${status}">
+            <span th:case="400">La solicitud no pudo ser procesada. Verificá los datos enviados e intentá nuevamente.</span>
+            <span th:case="401">Tu sesión expiró o no iniciaste sesión. Iniciá sesión para continuar.</span>
+            <span th:case="403">No tenés permisos para acceder a esta sección.</span>
+            <span th:case="404">La página que buscás no existe, fue movida, o el enlace es incorrecto.</span>
+            <span th:case="405">Esa acción no es válida para la página solicitada.</span>
+            <span th:case="500">Ocurrió un error inesperado en el servidor. Ya quedó registrado; intentá nuevamente en unos minutos.</span>
+            <span th:case="503">El sistema no está disponible en este momento. Intentá nuevamente en unos minutos.</span>
+            <span th:case="*">Algo salió mal. Podés volver al inicio o intentar nuevamente.</span>
+        </p>
+
+        <p class="error-path" th:if="${path != null and !path.isEmpty()}" th:text="'Ruta solicitada: ' + ${path}">
+            Ruta solicitada: /ejemplo
+        </p>
+
+        <div class="error-actions">
+            <a class="error-btn error-btn-primary" th:href="@{/dashboard}">
+                <i class="bi bi-house-door-fill"></i> Ir al Dashboard
+            </a>
+            <button type="button" class="error-btn error-btn-secondary" onclick="history.back()">
+                <i class="bi bi-arrow-left"></i> Volver atrás
+            </button>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

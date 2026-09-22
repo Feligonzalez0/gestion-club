@@ -1,0 +1,22 @@
+target/
+*.class
+
+# Base de datos local
+gestion-club.db
+
+# Documentación interna
+docs.md
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+
+# Variables de entorno locales
+.env

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Detalle de pago - Club</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}"/>
+</head>
+<body>
+<header th:replace="~{fragments/nav :: nav}"></header>
+<main class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Detalle del pago</h1>
+        <span class="badge bg-success fs-6">
+            <i class="bi bi-check-circle me-1"></i>
+            Cuota PAGADA
+        </span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+
+            <h5 class="card-title mb-3">
+                <i class="bi bi-person-fill me-2"></i>
+                Socio
+            </h5>
+
+            <p class="mb-1">
+                <span th:text="|${pago.cuota.socio.nombre} ${pago.cuota.socio.apellido}|"></span>
+                <span class="text-muted">
+                    (N&deg; socio <span th:text="${pago.cuota.socio.numeroSocio}"></span>,
+                    DNI <span th:text="${pago.cuota.socio.dni}"></span>)
+                </span>
+            </p>
+
+            <hr/>
+
+            <h5 class="card-title mb-3">
+                <i class="bi bi-cash-coin me-2"></i>
+                Cuota abonada
+            </h5>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Período</div>
+                    <div th:text="|${pago.cuota.mes}/${pago.cuota.anio}|"></div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Importe de la cuota</div>
+                    <div th:text="|$${pago.cuota.importe}|"></div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Vencimiento</div>
+                    <div th:text="${pago.cuota.fechaVencimiento}"></div>
+                </div>
+            </div>
+
+            <hr/>
+
+            <h5 class="card-title mb-3">
+                <i class="bi bi-receipt me-2"></i>
+                Datos del pago
+            </h5>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Importe abonado</div>
+                    <div th:text="|$${pago.importe}|"></div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Fecha de pago</div>
+                    <div th:text="${pago.fechaPago}"></div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="text-muted small">Medio de pago</div>
+                    <div>
+                        <span class="badge bg-info text-dark" th:text="${pago.medioPago}"></span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <a th:href="@{/pagos/{id}/editar(id=${pago.id})}" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil me-1"></i>
+        Editar
+    </a>
+
+    <form th:action="@{/pagos/{id}/eliminar(id=${pago.id})}"
+          method="post" class="d-inline"
+          data-confirm-title="Anular pago"
+          data-confirm="¿Anular este pago? La cuota correspondiente volverá a estado PENDIENTE."
+          data-confirm-button="Anular"
+          data-confirm-variant="btn-danger">
+        <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-trash me-1"></i>
+            Anular pago
+        </button>
+    </form>
+
+    <a th:href="@{/pagos}" class="btn btn-secondary">Volver al listado</a>
+
+</main>
+
+<div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/confirm-modal.js}"></script>
+</body>
+</html>

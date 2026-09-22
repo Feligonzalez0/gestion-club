@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${socio.nombre} ${socio.apellido} - Ficha de socio|">Ficha de socio - Club</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}"/>
+</head>
+<body>
+<header th:replace="~{fragments/nav :: nav}"></header>
+
+<main class="container">
+
+    <!-- Mensajes -->
+    <div class="alert alert-success" th:if="${mensajeExito}" th:text="${mensajeExito}"></div>
+    <div class="alert alert-danger" th:if="${mensajeError}" th:text="${mensajeError}"></div>
+
+    <!-- ========================================================= -->
+    <!-- ENCABEZADO                                                 -->
+    <!-- ========================================================= -->
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <a th:href="@{/socios}" class="text-decoration-none text-muted small">
+                <i class="bi bi-arrow-left me-1"></i>
+                Socios
+            </a>
+            <h1 class="mb-1 mt-1" th:text="|${socio.nombre} ${socio.apellido}|">Nombre Apellido</h1>
+            <div>
+                <span class="text-muted">Socio N&deg; <span th:text="${socio.numeroSocio}"></span></span>
+                <span class="badge ms-2"
+                      th:classappend="${socio.estado.name() == 'ACTIVO'} ? 'bg-success' : 'bg-secondary'"
+                      th:text="${socio.estado}"></span>
+            </div>
+        </div>
+
+        <div class="text-end">
+            <a class="btn btn-outline-primary" th:href="@{/socios/{id}/editar(id=${socio.id})}">
+                <i class="bi bi-pencil me-1"></i>
+                Editar socio
+            </a>
+            <a class="btn btn-primary ms-1"
+               th:if="${cuotaActual != null and cuotaActual.estado.name() == 'PENDIENTE'}"
+               th:href="@{/pagos/nuevo(cuotaId=${cuotaActual.id})}">
+                <i class="bi bi-cash-coin me-1"></i>
+                Registrar pago
+            </a>
+
+            <form th:if="${socio.estado.name() == 'ACTIVO'}"
+                  th:action="@{/socios/{id}/desactivar(id=${socio.id})}"
+                  method="post" class="d-inline"
+                  data-confirm-title="Desactivar socio"
+                  data-confirm="¿Desactivar este socio? El socio será dado de baja."
+                  data-confirm-button="Desactivar"
+                  data-confirm-variant="btn-warning">
+                <button type="submit" class="btn btn-outline-danger ms-1">Dar de baja</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- DATOS DEL SOCIO                                            -->
+    <!-- ========================================================= -->
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">
+                <i class="bi bi-person-fill me-2"></i>
+                Datos del socio
+            </h5>
+
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">DNI</div>
+                    <div th:text="${socio.dni}"></div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">Fecha de nacimiento</div>
+                    <div th:text="${socio.fechaNacimiento}"></div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">Fecha de alta</div>
+                    <div th:text="${socio.fechaAlta}"></div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">Categoría</div>
+                    <div th:text="${socio.categoria}"></div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Teléfono</div>
+                    <div th:text="${socio.telefono} ?: '—'"></div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Email</div>
+                    <div th:text="${socio.email} ?: '—'"></div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <div class="text-muted small">Dirección</div>
+                    <div th:text="${socio.direccion} ?: '—'"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- SITUACION DE CUOTAS                                        -->
+    <!-- ========================================================= -->
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">
+                <i class="bi bi-cash-coin me-2"></i>
+                Situación de cuotas
+            </h5>
+
+            <div class="row text-center mb-3">
+
+                <!-- Cuota actual -->
+                <div class="col-md-4 mb-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small mb-1">Cuota actual</div>
+                        <div th:if="${cuotaActual == null}" class="text-muted">Sin cuotas generadas</div>
+                        <div th:if="${cuotaActual != null}">
+                            <div class="fw-semibold" th:text="|${cuotaActual.mes}/${cuotaActual.anio}|"></div>
+                            <span class="badge mt-1"
+                                  th:classappend="${cuotaActual.estado.name() == 'PAGADA'} ? 'bg-success' : 'bg-warning text-dark'"
+                                  th:text="${cuotaActual.estado}"></span>
+                            <div class="small text-muted mt-1" th:text="|Importe: $${cuotaActual.importe}|"></div>
+                            <div class="small text-muted"
+                                 th:if="${cuotaActual.fechaPago != null}"
+                                 th:text="|Pagada el ${cuotaActual.fechaPago}|"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cuotas pendientes -->
+                <div class="col-md-4 mb-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small mb-1">Cuotas pendientes</div>
+                        <div class="display-6" th:text="${cuotasPendientes}">0</div>
+                    </div>
+                </div>
+
+                <!-- Total abonado este año -->
+                <div class="col-md-4 mb-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small mb-1"
+                             th:text="|Pagado en ${anioActual}|">Pagado este año</div>
+                        <div class="fw-semibold" th:text="|$${totalAbonadoEsteAnio}|"></div>
+                        <div class="small text-muted"
+                             th:text="|${cuotasPagadasEsteAnio} cuota(s) pagada(s)|"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- HISTORIAL DE CUOTAS                                        -->
+    <!-- ========================================================= -->
+
+    <div class="border-top pt-4 mt-4 mb-3">
+        <h5 class="mb-1">
+            <i class="bi bi-receipt-cutoff me-2"></i>
+            Historial de cuotas
+        </h5>
+    </div>
+
+    <p th:if="${#lists.isEmpty(historialCuotas)}" class="text-muted">
+        Este socio todavía no tiene cuotas generadas.
+    </p>
+
+    <table class="table table-striped" th:unless="${#lists.isEmpty(historialCuotas)}">
+        <thead>
+        <tr>
+            <th>Año</th>
+            <th>Mes</th>
+            <th>Importe</th>
+            <th>Vencimiento</th>
+            <th>Estado</th>
+            <th>Fecha de pago</th>
+            <th>Acción</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="cuota : ${historialCuotas}">
+            <td th:text="${cuota.anio}"></td>
+            <td th:text="${cuota.mes}"></td>
+            <td th:text="|$${cuota.importe}|"></td>
+            <td th:text="${cuota.fechaVencimiento}"></td>
+            <td>
+                <span class="badge"
+                      th:classappend="${cuota.estado.name() == 'PAGADA'} ? 'bg-success' : 'bg-warning text-dark'"
+                      th:text="${cuota.estado}"></span>
+            </td>
+            <td th:text="${cuota.fechaPago} ?: '—'"></td>
+            <td>
+                <a th:if="${cuota.estado.name() == 'PENDIENTE'}"
+                   class="btn btn-sm btn-primary"
+                   th:href="@{/pagos/nuevo(cuotaId=${cuota.id})}">
+                    Pagar
+                </a>
+                <a th:if="${cuota.estado.name() == 'PAGADA' and pagoIdPorCuota.get(cuota.id) != null}"
+                   class="btn btn-sm btn-outline-secondary"
+                   th:href="@{/pagos/{id}(id=${pagoIdPorCuota.get(cuota.id)})}">
+                    Ver pago
+                </a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- ========================================================= -->
+    <!-- HISTORIAL DE PAGOS                                         -->
+    <!-- ========================================================= -->
+
+    <div class="border-top pt-4 mt-4 mb-3">
+        <h5 class="mb-1">
+            <i class="bi bi-credit-card-2-front-fill me-2"></i>
+            Historial de pagos
+        </h5>
+    </div>
+
+    <p th:if="${#lists.isEmpty(historialPagos)}" class="text-muted">
+        Este socio todavía no tiene pagos registrados.
+    </p>
+
+    <table class="table table-striped" th:unless="${#lists.isEmpty(historialPagos)}">
+        <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Cuota</th>
+            <th>Importe</th>
+            <th>Medio de pago</th>
+            <th>Acción</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="pago : ${historialPagos}">
+            <td th:text="${pago.fechaPago}"></td>
+            <td th:text="|${pago.cuota.mes}/${pago.cuota.anio}|"></td>
+            <td th:text="|$${pago.importe}|"></td>
+            <td>
+                <span class="badge bg-info text-dark" th:text="${pago.medioPago}"></span>
+            </td>
+            <td>
+                <a class="btn btn-sm btn-outline-primary" th:href="@{/pagos/{id}(id=${pago.id})}">Ver</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+</main>
+
+<div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/confirm-modal.js}"></script>
+</body>
+</html>
