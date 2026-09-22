@@ -5,6 +5,8 @@ import com.club.gestion.cuota.CuotaEstado;
 import com.club.gestion.cuota.CuotaRepository;
 import com.club.gestion.socio.Socio;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +109,16 @@ public class PagoService {
     public List<Pago> filtrar(Integer anio, Integer mes, LocalDate fecha, String texto) {
         String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
         return pagoRepository.filtrar(anio, mes, fecha, termino);
+    }
+
+    /**
+     * Version paginada de {@link #filtrar(Integer, Integer, LocalDate, String)},
+     * usada por el listado de /pagos para no traer todos los pagos a
+     * memoria cuando hay muchos registros.
+     */
+    public Page<Pago> filtrar(Integer anio, Integer mes, LocalDate fecha, String texto, Pageable pageable) {
+        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
+        return pagoRepository.filtrar(anio, mes, fecha, termino, pageable);
     }
 
     public Optional<Pago> buscarPorId(Long id) {

@@ -6,6 +6,8 @@ import com.club.gestion.socio.SocioService;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.club.gestion.configuracion.Configuracion;
@@ -117,6 +119,16 @@ public class CuotaService {
     public List<Cuota> filtrar(Integer anio, Integer mes, CuotaEstado estado, String texto) {
         String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
         return cuotaRepository.filtrar(anio, mes, estado, termino);
+    }
+
+    /**
+     * Version paginada de {@link #filtrar(Integer, Integer, CuotaEstado, String)},
+     * usada por el listado de /cuotas para no traer todas las cuotas a
+     * memoria cuando hay muchos registros.
+     */
+    public Page<Cuota> filtrar(Integer anio, Integer mes, CuotaEstado estado, String texto, Pageable pageable) {
+        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
+        return cuotaRepository.filtrar(anio, mes, estado, termino, pageable);
     }
 
     /**

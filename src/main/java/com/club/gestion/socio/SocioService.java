@@ -1,5 +1,7 @@
 package com.club.gestion.socio;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -157,6 +159,16 @@ public class SocioService {
         }
 
         return resultados;
+    }
+
+    /**
+     * Version paginada de {@link #buscar(String, SocioEstado)}, usada por el
+     * listado de /socios y /socios/inactivos para no traer todos los
+     * registros a memoria cuando hay muchos socios cargados.
+     */
+    public Page<Socio> buscarPaginado(String texto, SocioEstado estado, Pageable pageable) {
+        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
+        return socioRepository.buscarPorTextoYEstadoPaginado(termino, estado, pageable);
     }
 
     @Transactional

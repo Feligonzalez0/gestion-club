@@ -9,6 +9,9 @@ import com.club.gestion.pago.PagoService;
 import jakarta.validation.Valid;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -35,6 +38,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/socios")
 public class SocioController {
 
+    // Cantidad de socios que se muestran por pagina en los listados.
+    private static final int TAMANIO_PAGINA = 20;
+
     private final SocioService socioService;
     private final CuotaService cuotaService;
     private final PagoService pagoService;
@@ -46,17 +52,35 @@ public class SocioController {
     }
 
     @GetMapping
-    public String listar(@RequestParam(name = "q", required = false) String q, Model model) {
-        model.addAttribute("socios", socioService.buscar(q, SocioEstado.ACTIVO));
+    public String listar(@RequestParam(name = "q", required = false) String q,
+                          @RequestParam(name = "pagina", defaultValue = "1") int pagina,
+                          Model model) {
+        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA);
+        Page<Socio> paginaSocios = socioService.buscarPaginado(q, SocioEstado.ACTIVO, pageable);
+
+        model.addAttribute("socios", paginaSocios.getContent());
+        model.addAttribute("pagina", paginaSocios);
         model.addAttribute("q", q);
         return "socios/list";
     }
 
     @GetMapping("/inactivos")
-    public String listarInactivos(@RequestParam(name = "q", required = false) String q, Model model) {
-        model.addAttribute("socios", socioService.buscar(q, SocioEstado.INACTIVO));
+    public String listarInactivos(@RequestParam(name = "q", required = false) String q,
+                                   @RequestParam(name = "pagina", defaultValue = "1") int pagina,
+                                   Model model) {
+        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA);
+        Page<Socio> paginaSocios = socioService.buscarPaginado(q, SocioEstado.INACTIVO, pageable);
+
+        model.addAttribute("socios", paginaSocios.getContent());
+        model.addAttribute("pagina", paginaSocios);
         model.addAttribute("q", q);
         return "socios/inactivos";
+    }
+
+    // El parametro "pagina" de la URL es 1-based (mas natural para el
+    // usuario); Pageable/PageRequest es 0-based, asi que se ajusta aqui.
+    private int indiceDePagina(int pagina) {
+        return Math.max(0, pagina - 1);
     }
 
     @GetMapping("/nuevo")

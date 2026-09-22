@@ -459,6 +459,8 @@
 
     </table>
 
+    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/cuotas(anio=${anio}, mes=${mes}, estado=${estado}, q=${q})})}"></div>
+
 </main>
 
 

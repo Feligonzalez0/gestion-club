@@ -194,6 +194,8 @@
 
     </table>
 
+    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/pagos(q=${q}, anio=${anio}, mes=${mes}, fecha=${fecha})})}"></div>
+
 </main>
 
 <!-- Modal de confirmación -->

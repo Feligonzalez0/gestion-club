@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+<body>
+
+<!--
+    Fragmento reutilizable de paginacion (Bootstrap 5), usado por los
+    listados de /socios, /socios/inactivos, /cuotas y /pagos.
+
+    Parametros:
+      - pagina: objeto org.springframework.data.domain.Page con los
+        resultados de la pagina actual (se usan sus metadatos: number,
+        totalPages, totalElements, numberOfElements, first, last).
+      - urlBase: URL ya armada con @{...} incluyendo todos los filtros
+        vigentes (busqueda, estado, periodo, etc.) pero SIN el parametro
+        "pagina". Este fragmento le agrega "?pagina=N" o "&pagina=N"
+        segun corresponda, para no pisar los filtros aplicados.
+-->
+<nav th:fragment="paginacion(pagina, urlBase)"
+     th:if="${pagina != null and pagina.totalPages > 1}"
+     aria-label="Paginacion de resultados"
+     class="mt-3"
+     th:with="separador=${#strings.contains(urlBase, '?') ? '&' : '?'},
+              paginaActual=${pagina.number + 1},
+              totalPaginas=${pagina.totalPages},
+              paginaAnterior=${pagina.number},
+              paginaSiguiente=${paginaActual + 1},
+              inicioVentana=${paginaActual - 2 > 1 ? paginaActual - 2 : 1},
+              finVentana=${paginaActual + 2 < totalPaginas ? paginaActual + 2 : totalPaginas}">
+
+    <ul class="pagination justify-content-center mb-2">
+
+        <!-- Anterior -->
+        <li class="page-item" th:classappend="${pagina.first} ? 'disabled'">
+            <a class="page-link rounded-start"
+            th:href="${pagina.first ? '#' : urlBase + separador + 'pagina=' + paginaAnterior}"
+            title="Página anterior"
+            aria-label="Página anterior">
+
+                <i class="bi bi-chevron-left"></i>
+            </a>        
+        </li>
+
+        <!-- Primera página + puntos suspensivos -->
+        <li class="page-item" th:if="${inicioVentana > 1}">
+            <a class="page-link"
+            th:href="${urlBase + separador + 'pagina=1'}">1</a>
+        </li>
+
+        <li class="page-item disabled" th:if="${inicioVentana > 2}">
+            <span class="page-link">…</span>
+        </li>
+
+        <!-- Páginas -->
+        <li class="page-item"
+            th:each="numeroPagina : ${#numbers.sequence(inicioVentana, finVentana)}"
+            th:classappend="${numeroPagina == paginaActual} ? 'active'">
+
+            <a class="page-link"
+            th:href="${urlBase + separador + 'pagina=' + numeroPagina}"
+            th:text="${numeroPagina}">
+            </a>
+        </li>
+
+        <!-- Puntos suspensivos + última página -->
+        <li class="page-item disabled" th:if="${finVentana < totalPaginas - 1}">
+            <span class="page-link">…</span>
+        </li>
+
+        <li class="page-item" th:if="${finVentana < totalPaginas}">
+            <a class="page-link"
+            th:href="${urlBase + separador + 'pagina=' + totalPaginas}"
+            th:text="${totalPaginas}">
+            </a>
+        </li>
+
+        <!-- Siguiente -->
+        <li class="page-item" th:classappend="${pagina.last} ? 'disabled'">
+            <a class="page-link rounded-end"
+            th:href="${pagina.last ? '#' : urlBase + separador + 'pagina=' + paginaSiguiente}"
+            title="Página siguiente"
+            aria-label="Página siguiente">
+
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+
+    </ul>
+
+    <p class="text-center text-muted small mb-0">
+        Mostrando <span th:text="${pagina.numberOfElements}"></span> de
+        <span th:text="${pagina.totalElements}"></span> registros
+        &mdash; pagina <span th:text="${paginaActual}"></span> de
+        <span th:text="${totalPaginas}"></span>
+    </p>
+
+</nav>
+
+</body>
+</html>

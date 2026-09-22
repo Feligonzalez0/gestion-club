@@ -6,6 +6,9 @@ import com.club.gestion.cuota.CuotaService;
 import jakarta.validation.Valid;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -32,6 +35,9 @@ import java.util.Optional;
 @RequestMapping("/pagos")
 public class PagoController {
 
+    // Cantidad de pagos que se muestran por pagina en el listado.
+    private static final int TAMANIO_PAGINA = 20;
+
     private final PagoService pagoService;
     private final CuotaService cuotaService;
 
@@ -45,15 +51,18 @@ public class PagoController {
                          @RequestParam(required = false) String anio,
                          @RequestParam(required = false) String mes,
                          @RequestParam(required = false) String fecha,
+                         @RequestParam(name = "pagina", defaultValue = "1") int pagina,
                          Model model) {
 
         Integer anioFiltro = parseEntero(anio);
         Integer mesFiltro = parseEntero(mes);
         LocalDate fechaFiltro = parseFecha(fecha);
 
-        model.addAttribute("pagos",
-                pagoService.filtrar(anioFiltro, mesFiltro, fechaFiltro, q));
+        Pageable pageable = PageRequest.of(Math.max(0, pagina - 1), TAMANIO_PAGINA);
+        Page<Pago> paginaPagos = pagoService.filtrar(anioFiltro, mesFiltro, fechaFiltro, q, pageable);
 
+        model.addAttribute("pagos", paginaPagos.getContent());
+        model.addAttribute("pagina", paginaPagos);
         model.addAttribute("q", q);
         model.addAttribute("anio", anioFiltro);
         model.addAttribute("mes", mesFiltro);

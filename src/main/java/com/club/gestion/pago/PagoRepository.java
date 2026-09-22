@@ -1,5 +1,7 @@
 package com.club.gestion.pago;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -48,7 +50,48 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                         @Param("mes") Integer mes,
                         @Param("fecha") LocalDate fecha,
                         @Param("termino") String termino);
-    
+
+    // Version paginada del mismo filtro, usada por el listado de /pagos.
+    // Se define un countQuery explicito (sin JOIN FETCH) para que el
+    // conteo de paginas no dependa de la derivacion automatica de Spring
+    // Data a partir de una consulta con fetch join.
+    @Query(
+        value = """
+            SELECT p FROM Pago p
+            JOIN FETCH p.cuota c
+            JOIN FETCH c.socio s
+            WHERE (:anio IS NULL OR c.anio = :anio)
+              AND (:mes IS NULL OR c.mes = :mes)
+              AND (:fecha IS NULL OR p.fechaPago = :fecha)
+              AND (
+                  :termino IS NULL
+                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
+                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
+                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
+              )
+            ORDER BY p.fechaPago DESC, p.id DESC
+        """,
+        countQuery = """
+            SELECT COUNT(p) FROM Pago p
+            JOIN p.cuota c
+            JOIN c.socio s
+            WHERE (:anio IS NULL OR c.anio = :anio)
+              AND (:mes IS NULL OR c.mes = :mes)
+              AND (:fecha IS NULL OR p.fechaPago = :fecha)
+              AND (
+                  :termino IS NULL
+                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
+                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
+                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
+              )
+        """
+    )
+    Page<Pago> filtrar(@Param("anio") Integer anio,
+                        @Param("mes") Integer mes,
+                        @Param("fecha") LocalDate fecha,
+                        @Param("termino") String termino,
+                        Pageable pageable);
+
     // Trae los pagos de un socio junto con su cuota, del mas reciente al
     // mas antiguo (para la ficha del socio).
     @Query("""

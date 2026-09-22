@@ -1,0 +1,571 @@
+diff --git a/src/main/java/com/club/gestion/cuota/CuotaController.java b/src/main/java/com/club/gestion/cuota/CuotaController.java
+index c797c57..2a2a61c 100644
+--- a/src/main/java/com/club/gestion/cuota/CuotaController.java
++++ b/src/main/java/com/club/gestion/cuota/CuotaController.java
+@@ -5,6 +5,9 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.stream.Collectors;
+ 
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.PageRequest;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+ import org.springframework.web.bind.annotation.GetMapping;
+@@ -18,6 +21,10 @@ import com.club.gestion.pago.PagoService;
+ @Controller
+ @RequestMapping("/cuotas")
+ public class CuotaController {
++
++    // Cantidad de cuotas que se muestran por pagina en el listado.
++    private static final int TAMANIO_PAGINA = 20;
++
+     private final CuotaService cuotaService;
+     private final PagoService pagoService;
+ 
+@@ -31,12 +38,16 @@ public class CuotaController {
+                           @RequestParam(required = false) String mes,
+                           @RequestParam(required = false) String estado,
+                           @RequestParam(required = false) String q,
++                          @RequestParam(name = "pagina", defaultValue = "1") int pagina,
+                           Model model) {
+         Integer anioFiltro = parseEntero(anio);
+         Integer mesFiltro = parseEntero(mes);
+         CuotaEstado estadoFiltro = (estado == null || estado.isBlank()) ? null : CuotaEstado.valueOf(estado);
+ 
+-        List<Cuota> cuotas = cuotaService.filtrar(anioFiltro, mesFiltro, estadoFiltro, q);
++        Pageable pageable = PageRequest.of(Math.max(0, pagina - 1), TAMANIO_PAGINA);
++        Page<Cuota> paginaCuotas = cuotaService.filtrar(anioFiltro, mesFiltro, estadoFiltro, q, pageable);
++        List<Cuota> cuotas = paginaCuotas.getContent();
++
+         List<Long> idsPagadas = cuotas.stream()
+                 .filter(c -> c.getEstado() == CuotaEstado.PAGADA)
+                 .map(Cuota::getId)
+@@ -44,6 +55,7 @@ public class CuotaController {
+         Map<Long, Long> pagoIdPorCuota = pagoService.mapearPagoIdPorCuotaId(idsPagadas);
+ 
+         model.addAttribute("cuotas", cuotas);
++        model.addAttribute("pagina", paginaCuotas);
+         model.addAttribute("pagoIdPorCuota", pagoIdPorCuota);
+         model.addAttribute("anio", anioFiltro);
+         model.addAttribute("mes", mesFiltro);
+diff --git a/src/main/java/com/club/gestion/cuota/CuotaRepository.java b/src/main/java/com/club/gestion/cuota/CuotaRepository.java
+index 7d1cfcf..e4ad764 100644
+--- a/src/main/java/com/club/gestion/cuota/CuotaRepository.java
++++ b/src/main/java/com/club/gestion/cuota/CuotaRepository.java
+@@ -1,6 +1,8 @@
+ package com.club.gestion.cuota;
+ 
+ import com.club.gestion.socio.Socio;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Modifying;
+ import org.springframework.data.jpa.repository.Query;
+@@ -45,6 +47,45 @@ public interface CuotaRepository extends JpaRepository<Cuota, Long> {
+                          @Param("estado") CuotaEstado estado,
+                          @Param("termino") String termino);
+ 
++    // Version paginada del mismo filtro, usada por el listado de /cuotas.
++    // Se define un countQuery explicito (sin JOIN FETCH) para que el
++    // conteo de paginas no dependa de la derivacion automatica de Spring
++    // Data a partir de una consulta con fetch join.
++    @Query(
++        value = """
++            SELECT c FROM Cuota c
++            JOIN FETCH c.socio s
++            WHERE (:anio IS NULL OR c.anio = :anio)
++              AND (:mes IS NULL OR c.mes = :mes)
++              AND (:estado IS NULL OR c.estado = :estado)
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++              )
++            ORDER BY c.anio DESC, c.mes DESC, s.apellido ASC, s.nombre ASC
++        """,
++        countQuery = """
++            SELECT COUNT(c) FROM Cuota c
++            JOIN c.socio s
++            WHERE (:anio IS NULL OR c.anio = :anio)
++              AND (:mes IS NULL OR c.mes = :mes)
++              AND (:estado IS NULL OR c.estado = :estado)
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++              )
++        """
++    )
++    Page<Cuota> filtrar(@Param("anio") Integer anio,
++                         @Param("mes") Integer mes,
++                         @Param("estado") CuotaEstado estado,
++                         @Param("termino") String termino,
++                         Pageable pageable);
++
+     @Modifying
+     @Query("""
+         UPDATE Cuota c
+diff --git a/src/main/java/com/club/gestion/cuota/CuotaService.java b/src/main/java/com/club/gestion/cuota/CuotaService.java
+index 6fbda92..0109de2 100644
+--- a/src/main/java/com/club/gestion/cuota/CuotaService.java
++++ b/src/main/java/com/club/gestion/cuota/CuotaService.java
+@@ -6,6 +6,8 @@ import com.club.gestion.socio.SocioService;
+ 
+ import org.springframework.boot.context.event.ApplicationReadyEvent;
+ import org.springframework.context.event.EventListener;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ import com.club.gestion.configuracion.Configuracion;
+@@ -119,6 +121,16 @@ public class CuotaService {
+         return cuotaRepository.filtrar(anio, mes, estado, termino);
+     }
+ 
++    /**
++     * Version paginada de {@link #filtrar(Integer, Integer, CuotaEstado, String)},
++     * usada por el listado de /cuotas para no traer todas las cuotas a
++     * memoria cuando hay muchos registros.
++     */
++    public Page<Cuota> filtrar(Integer anio, Integer mes, CuotaEstado estado, String texto, Pageable pageable) {
++        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
++        return cuotaRepository.filtrar(anio, mes, estado, termino, pageable);
++    }
++
+     /**
+      * Historial completo de cuotas de un socio, ordenado del periodo mas
+      * reciente al mas antiguo (para la ficha del socio).
+diff --git a/src/main/java/com/club/gestion/pago/PagoController.java b/src/main/java/com/club/gestion/pago/PagoController.java
+index 628531b..29fe45b 100644
+--- a/src/main/java/com/club/gestion/pago/PagoController.java
++++ b/src/main/java/com/club/gestion/pago/PagoController.java
+@@ -6,6 +6,9 @@ import com.club.gestion.cuota.CuotaService;
+ import jakarta.validation.Valid;
+ 
+ import org.springframework.dao.DataIntegrityViolationException;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.PageRequest;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+ import org.springframework.validation.BindingResult;
+@@ -32,6 +35,9 @@ import java.util.Optional;
+ @RequestMapping("/pagos")
+ public class PagoController {
+ 
++    // Cantidad de pagos que se muestran por pagina en el listado.
++    private static final int TAMANIO_PAGINA = 20;
++
+     private final PagoService pagoService;
+     private final CuotaService cuotaService;
+ 
+@@ -45,15 +51,18 @@ public class PagoController {
+                          @RequestParam(required = false) String anio,
+                          @RequestParam(required = false) String mes,
+                          @RequestParam(required = false) String fecha,
++                         @RequestParam(name = "pagina", defaultValue = "1") int pagina,
+                          Model model) {
+ 
+         Integer anioFiltro = parseEntero(anio);
+         Integer mesFiltro = parseEntero(mes);
+         LocalDate fechaFiltro = parseFecha(fecha);
+ 
+-        model.addAttribute("pagos",
+-                pagoService.filtrar(anioFiltro, mesFiltro, fechaFiltro, q));
++        Pageable pageable = PageRequest.of(Math.max(0, pagina - 1), TAMANIO_PAGINA);
++        Page<Pago> paginaPagos = pagoService.filtrar(anioFiltro, mesFiltro, fechaFiltro, q, pageable);
+ 
++        model.addAttribute("pagos", paginaPagos.getContent());
++        model.addAttribute("pagina", paginaPagos);
+         model.addAttribute("q", q);
+         model.addAttribute("anio", anioFiltro);
+         model.addAttribute("mes", mesFiltro);
+diff --git a/src/main/java/com/club/gestion/pago/PagoRepository.java b/src/main/java/com/club/gestion/pago/PagoRepository.java
+index 4635328..4590b46 100644
+--- a/src/main/java/com/club/gestion/pago/PagoRepository.java
++++ b/src/main/java/com/club/gestion/pago/PagoRepository.java
+@@ -1,5 +1,7 @@
+ package com.club.gestion.pago;
+ 
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.query.Param;
+@@ -48,7 +50,48 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
+                         @Param("mes") Integer mes,
+                         @Param("fecha") LocalDate fecha,
+                         @Param("termino") String termino);
+-    
++
++    // Version paginada del mismo filtro, usada por el listado de /pagos.
++    // Se define un countQuery explicito (sin JOIN FETCH) para que el
++    // conteo de paginas no dependa de la derivacion automatica de Spring
++    // Data a partir de una consulta con fetch join.
++    @Query(
++        value = """
++            SELECT p FROM Pago p
++            JOIN FETCH p.cuota c
++            JOIN FETCH c.socio s
++            WHERE (:anio IS NULL OR c.anio = :anio)
++              AND (:mes IS NULL OR c.mes = :mes)
++              AND (:fecha IS NULL OR p.fechaPago = :fecha)
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++              )
++            ORDER BY p.fechaPago DESC, p.id DESC
++        """,
++        countQuery = """
++            SELECT COUNT(p) FROM Pago p
++            JOIN p.cuota c
++            JOIN c.socio s
++            WHERE (:anio IS NULL OR c.anio = :anio)
++              AND (:mes IS NULL OR c.mes = :mes)
++              AND (:fecha IS NULL OR p.fechaPago = :fecha)
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++              )
++        """
++    )
++    Page<Pago> filtrar(@Param("anio") Integer anio,
++                        @Param("mes") Integer mes,
++                        @Param("fecha") LocalDate fecha,
++                        @Param("termino") String termino,
++                        Pageable pageable);
++
+     // Trae los pagos de un socio junto con su cuota, del mas reciente al
+     // mas antiguo (para la ficha del socio).
+     @Query("""
+diff --git a/src/main/java/com/club/gestion/pago/PagoService.java b/src/main/java/com/club/gestion/pago/PagoService.java
+index 250efb2..2eaf688 100644
+--- a/src/main/java/com/club/gestion/pago/PagoService.java
++++ b/src/main/java/com/club/gestion/pago/PagoService.java
+@@ -5,6 +5,8 @@ import com.club.gestion.cuota.CuotaEstado;
+ import com.club.gestion.cuota.CuotaRepository;
+ import com.club.gestion.socio.Socio;
+ 
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ 
+@@ -109,6 +111,16 @@ public class PagoService {
+         return pagoRepository.filtrar(anio, mes, fecha, termino);
+     }
+ 
++    /**
++     * Version paginada de {@link #filtrar(Integer, Integer, LocalDate, String)},
++     * usada por el listado de /pagos para no traer todos los pagos a
++     * memoria cuando hay muchos registros.
++     */
++    public Page<Pago> filtrar(Integer anio, Integer mes, LocalDate fecha, String texto, Pageable pageable) {
++        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
++        return pagoRepository.filtrar(anio, mes, fecha, termino, pageable);
++    }
++
+     public Optional<Pago> buscarPorId(Long id) {
+         return pagoRepository.buscarPorIdConDetalle(id);
+     }
+diff --git a/src/main/java/com/club/gestion/socio/SocioController.java b/src/main/java/com/club/gestion/socio/SocioController.java
+index c22f19a..d28e69f 100644
+--- a/src/main/java/com/club/gestion/socio/SocioController.java
++++ b/src/main/java/com/club/gestion/socio/SocioController.java
+@@ -9,6 +9,9 @@ import com.club.gestion.pago.PagoService;
+ import jakarta.validation.Valid;
+ 
+ import org.springframework.dao.DataIntegrityViolationException;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.PageRequest;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+ import org.springframework.validation.BindingResult;
+@@ -35,6 +38,9 @@ import java.util.stream.Collectors;
+ @RequestMapping("/socios")
+ public class SocioController {
+ 
++    // Cantidad de socios que se muestran por pagina en los listados.
++    private static final int TAMANIO_PAGINA = 20;
++
+     private final SocioService socioService;
+     private final CuotaService cuotaService;
+     private final PagoService pagoService;
+@@ -46,19 +52,37 @@ public class SocioController {
+     }
+ 
+     @GetMapping
+-    public String listar(@RequestParam(name = "q", required = false) String q, Model model) {
+-        model.addAttribute("socios", socioService.buscar(q, SocioEstado.ACTIVO));
++    public String listar(@RequestParam(name = "q", required = false) String q,
++                          @RequestParam(name = "pagina", defaultValue = "1") int pagina,
++                          Model model) {
++        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA);
++        Page<Socio> paginaSocios = socioService.buscarPaginado(q, SocioEstado.ACTIVO, pageable);
++
++        model.addAttribute("socios", paginaSocios.getContent());
++        model.addAttribute("pagina", paginaSocios);
+         model.addAttribute("q", q);
+         return "socios/list";
+     }
+ 
+     @GetMapping("/inactivos")
+-    public String listarInactivos(@RequestParam(name = "q", required = false) String q, Model model) {
+-        model.addAttribute("socios", socioService.buscar(q, SocioEstado.INACTIVO));
++    public String listarInactivos(@RequestParam(name = "q", required = false) String q,
++                                   @RequestParam(name = "pagina", defaultValue = "1") int pagina,
++                                   Model model) {
++        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA);
++        Page<Socio> paginaSocios = socioService.buscarPaginado(q, SocioEstado.INACTIVO, pageable);
++
++        model.addAttribute("socios", paginaSocios.getContent());
++        model.addAttribute("pagina", paginaSocios);
+         model.addAttribute("q", q);
+         return "socios/inactivos";
+     }
+ 
++    // El parametro "pagina" de la URL es 1-based (mas natural para el
++    // usuario); Pageable/PageRequest es 0-based, asi que se ajusta aqui.
++    private int indiceDePagina(int pagina) {
++        return Math.max(0, pagina - 1);
++    }
++
+     @GetMapping("/nuevo")
+     public String nuevoFormulario(Model model) {
+         model.addAttribute("socioForm", new SocioForm());
+diff --git a/src/main/java/com/club/gestion/socio/SocioRepository.java b/src/main/java/com/club/gestion/socio/SocioRepository.java
+index 03a385c..058bd65 100644
+--- a/src/main/java/com/club/gestion/socio/SocioRepository.java
++++ b/src/main/java/com/club/gestion/socio/SocioRepository.java
+@@ -1,5 +1,7 @@
+ package com.club.gestion.socio;
+ 
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.query.Param;
+@@ -28,6 +30,41 @@ public interface SocioRepository extends JpaRepository<Socio, Long> {
+     """)
+     List<Socio> buscarPorTextoYEstado(@Param("termino") String termino, @Param("estado") SocioEstado estado);
+ 
++    // Version paginada del mismo filtro (estado + busqueda de texto libre,
++    // incluyendo numero de socio) para el listado de /socios y
++    // /socios/inactivos. El termino puede llegar null, en cuyo caso no se
++    // aplica ese criterio y solo se filtra por estado.
++    @Query(
++        value = """
++            SELECT s FROM Socio s
++            WHERE s.estado = :estado
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.telefono) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR CAST(s.numeroSocio AS string) LIKE CONCAT('%', :termino, '%')
++              )
++            ORDER BY s.apellido ASC, s.nombre ASC
++        """,
++        countQuery = """
++            SELECT COUNT(s) FROM Socio s
++            WHERE s.estado = :estado
++              AND (
++                  :termino IS NULL
++                  OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.apellido) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.dni) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR LOWER(s.telefono) LIKE LOWER(CONCAT('%', :termino, '%'))
++                  OR CAST(s.numeroSocio AS string) LIKE CONCAT('%', :termino, '%')
++              )
++        """
++    )
++    Page<Socio> buscarPorTextoYEstadoPaginado(@Param("termino") String termino,
++                                               @Param("estado") SocioEstado estado,
++                                               Pageable pageable);
++
+     Optional<Socio> findFirstByOrderByNumeroSocioDesc();
+ 
+     Optional<Socio> findByNumeroSocioAndEstado(Long numeroSocio, SocioEstado estado);
+diff --git a/src/main/java/com/club/gestion/socio/SocioService.java b/src/main/java/com/club/gestion/socio/SocioService.java
+index b678551..72a26e3 100644
+--- a/src/main/java/com/club/gestion/socio/SocioService.java
++++ b/src/main/java/com/club/gestion/socio/SocioService.java
+@@ -1,5 +1,7 @@
+ package com.club.gestion.socio;
+ 
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ 
+@@ -159,6 +161,16 @@ public class SocioService {
+         return resultados;
+     }
+ 
++    /**
++     * Version paginada de {@link #buscar(String, SocioEstado)}, usada por el
++     * listado de /socios y /socios/inactivos para no traer todos los
++     * registros a memoria cuando hay muchos socios cargados.
++     */
++    public Page<Socio> buscarPaginado(String texto, SocioEstado estado, Pageable pageable) {
++        String termino = (texto == null || texto.isBlank()) ? null : texto.trim();
++        return socioRepository.buscarPorTextoYEstadoPaginado(termino, estado, pageable);
++    }
++
+     @Transactional
+     public void eliminar(Long id) {
+         Socio socio = socioRepository.findById(id)
+diff --git a/src/main/resources/templates/cuotas/list.html b/src/main/resources/templates/cuotas/list.html
+index 88370d2..235407f 100644
+--- a/src/main/resources/templates/cuotas/list.html
++++ b/src/main/resources/templates/cuotas/list.html
+@@ -459,6 +459,8 @@
+ 
+     </table>
+ 
++    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/cuotas(anio=${anio}, mes=${mes}, estado=${estado}, q=${q})})}"></div>
++
+ </main>
+ 
+ 
+diff --git a/src/main/resources/templates/fragments/paginacion.html b/src/main/resources/templates/fragments/paginacion.html
+new file mode 100644
+index 0000000..0e754ee
+--- /dev/null
++++ b/src/main/resources/templates/fragments/paginacion.html
+@@ -0,0 +1,87 @@
++<!DOCTYPE html>
++<html xmlns:th="http://www.thymeleaf.org">
++<body>
++
++<!--
++    Fragmento reutilizable de paginacion (Bootstrap 5), usado por los
++    listados de /socios, /socios/inactivos, /cuotas y /pagos.
++
++    Parametros:
++      - pagina: objeto org.springframework.data.domain.Page con los
++        resultados de la pagina actual (se usan sus metadatos: number,
++        totalPages, totalElements, numberOfElements, first, last).
++      - urlBase: URL ya armada con @{...} incluyendo todos los filtros
++        vigentes (busqueda, estado, periodo, etc.) pero SIN el parametro
++        "pagina". Este fragmento le agrega "?pagina=N" o "&pagina=N"
++        segun corresponda, para no pisar los filtros aplicados.
++-->
++<nav th:fragment="paginacion(pagina, urlBase)"
++     th:if="${pagina != null and pagina.totalPages > 1}"
++     aria-label="Paginacion de resultados"
++     class="mt-3"
++     th:with="separador=${#strings.contains(urlBase, '?')} ? '&' : '?',
++              paginaActual=${pagina.number + 1},
++              totalPaginas=${pagina.totalPages},
++              paginaAnterior=${pagina.number},
++              paginaSiguiente=${paginaActual + 1},
++              inicioVentana=${paginaActual - 2 > 1 ? paginaActual - 2 : 1},
++              finVentana=${paginaActual + 2 < totalPaginas ? paginaActual + 2 : totalPaginas}">
++
++    <ul class="pagination justify-content-center mb-2">
++
++        <!-- Anterior -->
++        <li class="page-item" th:classappend="${pagina.first} ? 'disabled'">
++            <a class="page-link"
++               th:href="${pagina.first} ? '#' : ${urlBase} + ${separador} + 'pagina=' + ${paginaAnterior}">
++                Anterior
++            </a>
++        </li>
++
++        <!-- Primera pagina + puntos suspensivos, si la ventana no arranca en 1 -->
++        <li class="page-item" th:if="${inicioVentana > 1}">
++            <a class="page-link" th:href="${urlBase} + ${separador} + 'pagina=1'">1</a>
++        </li>
++        <li class="page-item disabled" th:if="${inicioVentana > 2}">
++            <span class="page-link">&hellip;</span>
++        </li>
++
++        <!-- Ventana de paginas alrededor de la actual -->
++        <li class="page-item"
++            th:each="numeroPagina : ${#numbers.sequence(inicioVentana, finVentana)}"
++            th:classappend="${numeroPagina == paginaActual} ? 'active'">
++            <a class="page-link"
++               th:href="${urlBase} + ${separador} + 'pagina=' + ${numeroPagina}"
++               th:text="${numeroPagina}"></a>
++        </li>
++
++        <!-- Puntos suspensivos + ultima pagina, si la ventana no llega al final -->
++        <li class="page-item disabled" th:if="${finVentana < totalPaginas - 1}">
++            <span class="page-link">&hellip;</span>
++        </li>
++        <li class="page-item" th:if="${finVentana < totalPaginas}">
++            <a class="page-link"
++               th:href="${urlBase} + ${separador} + 'pagina=' + ${totalPaginas}"
++               th:text="${totalPaginas}"></a>
++        </li>
++
++        <!-- Siguiente -->
++        <li class="page-item" th:classappend="${pagina.last} ? 'disabled'">
++            <a class="page-link"
++               th:href="${pagina.last} ? '#' : ${urlBase} + ${separador} + 'pagina=' + ${paginaSiguiente}">
++                Siguiente
++            </a>
++        </li>
++
++    </ul>
++
++    <p class="text-center text-muted small mb-0">
++        Mostrando <span th:text="${pagina.numberOfElements}"></span> de
++        <span th:text="${pagina.totalElements}"></span> registros
++        &mdash; pagina <span th:text="${paginaActual}"></span> de
++        <span th:text="${totalPaginas}"></span>
++    </p>
++
++</nav>
++
++</body>
++</html>
+diff --git a/src/main/resources/templates/pagos/list.html b/src/main/resources/templates/pagos/list.html
+index c04c70f..4e4cc3d 100644
+--- a/src/main/resources/templates/pagos/list.html
++++ b/src/main/resources/templates/pagos/list.html
+@@ -194,6 +194,8 @@
+ 
+     </table>
+ 
++    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/pagos(q=${q}, anio=${anio}, mes=${mes}, fecha=${fecha})})}"></div>
++
+ </main>
+ 
+ <!-- Modal de confirmación -->
+diff --git a/src/main/resources/templates/socios/inactivos.html b/src/main/resources/templates/socios/inactivos.html
+index 5c41d23..fb0d5db 100644
+--- a/src/main/resources/templates/socios/inactivos.html
++++ b/src/main/resources/templates/socios/inactivos.html
+@@ -94,6 +94,8 @@
+         </tr>
+         </tbody>
+     </table>
++
++    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/socios/inactivos(q=${q})})}"></div>
+ </main>
+ 
+ <div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>
+diff --git a/src/main/resources/templates/socios/list.html b/src/main/resources/templates/socios/list.html
+index df9ead6..78529a3 100644
+--- a/src/main/resources/templates/socios/list.html
++++ b/src/main/resources/templates/socios/list.html
+@@ -92,6 +92,8 @@
+         </tr>
+         </tbody>
+     </table>
++
++    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/socios(q=${q})})}"></div>
+ </main>
+ 
+ <div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>

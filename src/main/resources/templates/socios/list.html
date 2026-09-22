@@ -92,6 +92,8 @@
         </tr>
         </tbody>
     </table>
+
+    <div th:replace="~{fragments/paginacion :: paginacion(pagina=${pagina}, urlBase=@{/socios(q=${q})})}"></div>
 </main>
 
 <div th:replace="~{fragments/confirm-modal :: confirmModal}"></div>

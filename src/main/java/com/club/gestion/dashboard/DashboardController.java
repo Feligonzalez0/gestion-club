@@ -24,7 +24,7 @@ public class DashboardController {
     @GetMapping({"/", "/dashboard"})
     public String dashboard(Model model) {
         model.addAttribute("cantidadSociosActivos", socioService.contarActivos());
-        model.addAttribute("cantidadCuotasPendientes", obtenerCuotasDisponibles());
+        model.addAttribute("cantidadCuotasPendientes", obtenerCuotasDisponibles().size());
         return "dashboard";
     }
 
