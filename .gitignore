@@ -3,6 +3,9 @@ target/
 
 # Base de datos local
 gestion-club.db
+*.db
+*.db-shm
+*.db-wal
 
 # Documentación interna
 docs.md

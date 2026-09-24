@@ -24,19 +24,21 @@
     <!-- Barra de búsqueda y acciones (Alineada con row g-2 y ms-auto) -->
     <form method="get" th:action="@{/socios/inactivos}" class="row g-2 mb-3">
         <div class="col-auto">
-            <input type="text" name="busqueda" class="form-control" placeholder="Buscar inactivos..." th:value="${busqueda}"/>
+            <!-- Cambio aquí: name="q" y th:value="${q}" -->
+            <input type="text" name="q" class="form-control" placeholder="Buscar inactivos..." th:value="${q}"/>
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-outline-primary">Buscar</button>
         </div>
-        <div class="col-auto" th:if="${busqueda != null and !#strings.isEmpty(busqueda)}">
+        <!-- Cambio aquí: la validación ahora usa la variable ${q} -->
+        <div class="col-auto" th:if="${q != null and !#strings.isEmpty(q)}">
             <a class="btn btn-outline-secondary" th:href="@{/socios/inactivos}">Ver todos</a>
         </div>
         <div class="col-auto ms-auto">
             <a class="btn btn-secondary" th:href="@{/socios}">Volver a Socios Activos</a>
         </div>
     </form>
-
+    
     <!-- Mensaje si la lista está vacía -->
     <p th:if="${#lists.isEmpty(socios)}" class="text-muted">
         No se encontraron socios inactivos.
