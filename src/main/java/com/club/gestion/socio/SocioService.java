@@ -39,6 +39,7 @@ public class SocioService {
 
         validarDniUnico(socio.getDni(), null);
         validarNumeroSocioUnico(socio.getNumeroSocio(), null);
+        validarEdadyCategoria(socio.getFechaNacimiento(), socio.getCategoria());
 
         if (socio.getEstado() == null) {
             socio.setEstado(SocioEstado.ACTIVO);
@@ -59,6 +60,7 @@ public class SocioService {
 
         validarDniUnico(datosActualizados.getDni(), id);
         validarNumeroSocioUnico(datosActualizados.getNumeroSocio(), id);
+        validarEdadyCategoria(datosActualizados.getFechaNacimiento(),datosActualizados.getCategoria());
 
         socio.setNumeroSocio(datosActualizados.getNumeroSocio());
         socio.setNombre(datosActualizados.getNombre());
@@ -221,5 +223,25 @@ public class SocioService {
         if (existe) {
             throw new IllegalArgumentException("Ya existe un socio con ese numero de socio.");
         }
+    }
+
+    private void validarEdadyCategoria(LocalDate fechaNacimiento, SocioCategoria categoria){
+        boolean esMayor = esMayorDeEdad(fechaNacimiento);
+        
+        if (esMayor && categoria == SocioCategoria.MENOR){
+            throw new IllegalArgumentException("El socio es mayor de edad, no puede ser categoría menor.");
+        }
+
+        if (!esMayor && categoria == SocioCategoria.MAYOR){
+            throw new IllegalArgumentException("El socio es menor de edad, no puede ser categoría mayor.");
+        }
+    }
+
+    private static boolean esMayorDeEdad(LocalDate fechaNacimiento) {
+        // Resta 18 años a la fecha actual
+        LocalDate fechaLimite = LocalDate.now().minusYears(18);
+        
+        // Si la fecha de nacimiento es anterior o igual a la fecha límite, es mayor de edad
+        return fechaNacimiento.isBefore(fechaLimite) || fechaNacimiento.isEqual(fechaLimite);
     }
 }
