@@ -2,6 +2,7 @@ package com.club.gestion.socio;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +17,7 @@ public interface SocioRepository extends JpaRepository<Socio, Long> {
     Optional<Socio> findByNumeroSocio(Long numeroSocio);
 
     List<Socio> findByEstado(SocioEstado estado);
+    List<Socio> findByEstado(SocioEstado estado, Sort sort);
 
     // Filtrar por estado y coincidencia de búsqueda (nombre, apellido o dni)
     @Query("""
@@ -46,7 +48,6 @@ public interface SocioRepository extends JpaRepository<Socio, Long> {
                   OR LOWER(s.telefono) LIKE LOWER(CONCAT('%', :termino, '%'))
                   OR CAST(s.numeroSocio AS string) LIKE CONCAT('%', :termino, '%')
               )
-            ORDER BY s.apellido ASC, s.nombre ASC
         """,
         countQuery = """
             SELECT COUNT(s) FROM Socio s

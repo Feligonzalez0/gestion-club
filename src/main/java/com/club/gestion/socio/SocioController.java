@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -55,7 +56,7 @@ public class SocioController {
     public String listar(@RequestParam(name = "q", required = false) String q,
                           @RequestParam(name = "pagina", defaultValue = "1") int pagina,
                           Model model) {
-        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA);
+        Pageable pageable = PageRequest.of(indiceDePagina(pagina), TAMANIO_PAGINA, Sort.by("id").ascending());
         Page<Socio> paginaSocios = socioService.buscarPaginado(q, SocioEstado.ACTIVO, pageable);
 
         model.addAttribute("socios", paginaSocios.getContent());

@@ -2,6 +2,7 @@ package com.club.gestion.socio;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,15 +89,15 @@ public class SocioService {
     }
 
     public List<Socio> listarTodos() {
-        return socioRepository.findAll();
+        return socioRepository.findAll(Sort.by("id").ascending());
     }
 
     public List<Socio> listarActivos() {
-        return socioRepository.findByEstado(SocioEstado.ACTIVO);
+        return socioRepository.findByEstado(SocioEstado.ACTIVO, Sort.by("id").ascending());
     }
 
     public List<Socio> listarInactivos() {
-        return socioRepository.findByEstado(SocioEstado.INACTIVO);
+        return socioRepository.findByEstado(SocioEstado.INACTIVO, Sort.by("id").ascending());
     }
 
     /**
