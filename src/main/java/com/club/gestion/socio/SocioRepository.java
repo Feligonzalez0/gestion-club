@@ -80,4 +80,25 @@ public interface SocioRepository extends JpaRepository<Socio, Long> {
 
     List<Socio> findByNombreContainingIgnoreCaseOrApellidoContainingIgnoreCaseOrDniContainingIgnoreCaseOrTelefonoContainingIgnoreCase(
             String nombre, String apellido, String dni, String telefono);
+
+    // Cantidad de socios en un estado determinado (usado por el dashboard),
+    // resuelto como COUNT en la base en vez de traer la lista completa.
+    long countByEstado(SocioEstado estado);
+
+    // Cantidad de socios en un estado determinado, agrupados por categoria
+    // (MAYOR/MENOR/JUBILADO), para el grafico de "socios por categoria" del
+    // dashboard. Devuelve una fila por cada categoria que tenga al menos un
+    // socio en ese estado.
+    @Query("""
+        SELECT s.categoria AS categoria, COUNT(s) AS cantidad
+        FROM Socio s
+        WHERE s.estado = :estado
+        GROUP BY s.categoria
+    """)
+    List<ConteoPorCategoria> contarPorCategoria(@Param("estado") SocioEstado estado);
+
+    interface ConteoPorCategoria {
+        SocioCategoria getCategoria();
+        Long getCantidad();
+    }
 }

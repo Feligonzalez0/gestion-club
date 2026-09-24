@@ -6,6 +6,7 @@ gestion-club.db
 *.db
 *.db-shm
 *.db-wal
+backup/
 
 # Documentación interna
 docs.md

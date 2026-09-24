@@ -26,6 +26,27 @@ public interface CuotaRepository extends JpaRepository<Cuota, Long> {
 
     boolean existsBySocio(Socio socio);
 
+    // Cantidad de cuotas de un periodo en un estado determinado (usado por
+    // el dashboard para separar PENDIENTES/VENCIDAS/PAGADAS del mes actual
+    // sin traer las cuotas a memoria).
+    long countByAnioAndMesAndEstado(Integer anio, Integer mes, CuotaEstado estado);
+
+    // Importe total de las cuotas de un periodo, sin filtrar por estado
+    // (denominador del % de cobranzas del dashboard).
+    @Query("SELECT COALESCE(SUM(c.importe), 0) FROM Cuota c WHERE c.anio = :anio AND c.mes = :mes")
+    Long sumarImportePorPeriodo(@Param("anio") Integer anio, @Param("mes") Integer mes);
+
+    // Importe de las cuotas de un periodo en un estado determinado (usado
+    // para "cobrado este mes", sumando las PAGADAS).
+    @Query("""
+        SELECT COALESCE(SUM(c.importe), 0)
+        FROM Cuota c
+        WHERE c.anio = :anio AND c.mes = :mes AND c.estado = :estado
+    """)
+    Long sumarImportePorPeriodoYEstado(@Param("anio") Integer anio,
+                                        @Param("mes") Integer mes,
+                                        @Param("estado") CuotaEstado estado);
+
     // Filtro combinado para el listado de /cuotas: cada criterio es opcional
     // (si el parametro llega null, no se aplica esa condicion).
     @Query("""

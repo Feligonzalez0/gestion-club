@@ -10,7 +10,9 @@ import com.club.gestion.cuota.CuotaRepository;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -199,7 +201,23 @@ public class SocioService {
     }
 
     public long contarActivos() {
-        return listarActivos().size();
+        return socioRepository.countByEstado(SocioEstado.ACTIVO);
+    }
+
+    /**
+     * Cantidad de socios en un estado determinado, agrupados por categoria.
+     * Siempre devuelve las 3 categorias (con 0 si no hay socios en alguna),
+     * para que el dashboard no tenga que resolver valores faltantes.
+     */
+    public Map<SocioCategoria, Long> contarPorCategoria(SocioEstado estado) {
+        Map<SocioCategoria, Long> resultado = new EnumMap<>(SocioCategoria.class);
+        for (SocioCategoria categoria : SocioCategoria.values()) {
+            resultado.put(categoria, 0L);
+        }
+        for (SocioRepository.ConteoPorCategoria fila : socioRepository.contarPorCategoria(estado)) {
+            resultado.put(fila.getCategoria(), fila.getCantidad());
+        }
+        return resultado;
     }
 
     private Long siguienteNumeroSocio() {

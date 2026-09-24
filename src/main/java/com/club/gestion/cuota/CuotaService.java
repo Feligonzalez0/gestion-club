@@ -151,6 +151,33 @@ public class CuotaService {
         return cuotaRepository.findByEstadoConSocio(CuotaEstado.VENCIDA);
     }
 
+    /**
+     * Cantidad de cuotas de un periodo (anio/mes) en un estado determinado.
+     * Resuelto como COUNT en la base (sin traer las cuotas a memoria);
+     * usado por el dashboard para distinguir PENDIENTES de VENCIDAS y
+     * PAGADAS del mes actual.
+     */
+    public long contarPorEstadoEnPeriodo(int anio, int mes, CuotaEstado estado) {
+        return cuotaRepository.countByAnioAndMesAndEstado(anio, mes, estado);
+    }
+
+    /**
+     * Importe total de las cuotas de un periodo, sin filtrar por estado.
+     */
+    public long sumarImporteEnPeriodo(int anio, int mes) {
+        Long total = cuotaRepository.sumarImportePorPeriodo(anio, mes);
+        return total != null ? total : 0L;
+    }
+
+    /**
+     * Importe de las cuotas de un periodo en un estado determinado (p. ej.
+     * lo efectivamente cobrado en el mes, sumando las PAGADAS).
+     */
+    public long sumarImporteEnPeriodo(int anio, int mes, CuotaEstado estado) {
+        Long total = cuotaRepository.sumarImportePorPeriodoYEstado(anio, mes, estado);
+        return total != null ? total : 0L;
+    }
+
     public Integer calcularDeuda(Socio socio) {
         return cuotaRepository.findBySocioAndEstado(socio, CuotaEstado.PENDIENTE).stream()
                 .mapToInt(Cuota::getImporte)
