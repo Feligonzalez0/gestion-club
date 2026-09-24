@@ -80,6 +80,11 @@ public class CuotaController {
             return "redirect:/cuotas";
         }
 
+        if (mesVal < 1 || mesVal > 12) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Mes inválido, intente nuevamente.");
+            return "redirect:/cuotas";
+        }
+
         int generadas = cuotaService.generarCuotasDelMes(anioVal, mesVal);
         redirectAttributes.addFlashAttribute("mensajeExito",
                 generadas + " cuota(s) generada(s) para el periodo " + mesVal + "/" + anioVal + ".");
