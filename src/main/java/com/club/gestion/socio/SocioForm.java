@@ -3,6 +3,7 @@ package com.club.gestion.socio;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -27,6 +28,7 @@ public class SocioForm {
     private String apellido;
 
     @NotBlank(message = "El DNI es obligatorio")
+    @Pattern(regexp = "^(\\d{1,2}\\.\\d{3}\\.\\d{3}|\\d{7,8})$", message = "Ingrese un DNI valido")
     private String dni;
 
     @NotNull(message = "La fecha de nacimiento es obligatoria")
