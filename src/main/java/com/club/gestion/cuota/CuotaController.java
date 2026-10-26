@@ -3,14 +3,21 @@ package com.club.gestion.cuota;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -89,6 +96,111 @@ public class CuotaController {
         redirectAttributes.addFlashAttribute("mensajeExito",
                 generadas + " cuota(s) generada(s) para el periodo " + mesVal + "/" + anioVal + ".");
         return "redirect:/cuotas?anio=" + anioVal + "&mes=" + mesVal;
+    }
+
+    @GetMapping("/{id}/editar")
+    public String editarFormulario(@PathVariable Long id,
+                                   Model model,
+                                   RedirectAttributes redirectAttributes) {
+
+        Optional<Cuota> cuotaOpt = cuotaService.buscarPorId(id);
+
+        if (cuotaOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Cuota no encontrada.");
+            return "redirect:/cuotas";
+        }
+
+        Cuota cuota = cuotaOpt.get();
+
+        if (!cuotaService.esModificable(cuota)) {
+            redirectAttributes.addFlashAttribute("mensajeError",
+                    "No se puede editar una cuota PAGADA. Anule primero el pago asociado.");
+            return redirectAlPeriodo(cuota);
+        }
+
+        model.addAttribute("cuotaForm", CuotaForm.desde(cuota));
+        model.addAttribute("cuota", cuota);
+        model.addAttribute("cuotaId", id);
+
+        return "cuotas/form";
+    }
+
+    @PostMapping("/{id}")
+    public String actualizar(@PathVariable Long id,
+                             @Valid @ModelAttribute("cuotaForm") CuotaForm cuotaForm,
+                             BindingResult bindingResult,
+                             Model model,
+                             RedirectAttributes redirectAttributes) {
+
+        if (bindingResult.hasErrors()) {
+            return volverAlFormulario(id, model, redirectAttributes, null);
+        }
+
+        try {
+            Cuota actualizada = cuotaService.actualizar(id, cuotaForm.aCuota());
+
+            redirectAttributes.addFlashAttribute("mensajeExito", "Cuota actualizada correctamente.");
+            return redirectAlPeriodo(actualizada);
+
+        } catch (NoSuchElementException ex) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Cuota no encontrada.");
+            return "redirect:/cuotas";
+
+        } catch (IllegalArgumentException ex) {
+            return volverAlFormulario(id, model, redirectAttributes, ex.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/anular")
+    public String anular(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+
+        Optional<Cuota> cuotaOpt = cuotaService.buscarPorId(id);
+
+        if (cuotaOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Cuota no encontrada.");
+            return "redirect:/cuotas";
+        }
+
+        Cuota cuota = cuotaOpt.get();
+
+        try {
+            cuotaService.anular(id);
+            redirectAttributes.addFlashAttribute("mensajeExito", "Cuota anulada correctamente.");
+
+        } catch (NoSuchElementException ex) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Cuota no encontrada.");
+            return "redirect:/cuotas";
+
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("mensajeError", ex.getMessage());
+        }
+
+        return redirectAlPeriodo(cuota);
+    }
+
+    // Vuelve a mostrar el formulario de edicion (error de validacion o de
+    // negocio), recargando la cuota para los datos de solo lectura.
+    private String volverAlFormulario(Long id, Model model,
+                                      RedirectAttributes redirectAttributes, String errorNegocio) {
+        Optional<Cuota> cuotaOpt = cuotaService.buscarPorId(id);
+
+        if (cuotaOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("mensajeError", "Cuota no encontrada.");
+            return "redirect:/cuotas";
+        }
+
+        model.addAttribute("cuota", cuotaOpt.get());
+        model.addAttribute("cuotaId", id);
+        if (errorNegocio != null) {
+            model.addAttribute("errorNegocio", errorNegocio);
+        }
+        return "cuotas/form";
+    }
+
+    // Despues de editar/anular se vuelve al listado filtrado por el periodo
+    // de la cuota, igual que luego de generar las cuotas de un periodo.
+    private String redirectAlPeriodo(Cuota cuota) {
+        return "redirect:/cuotas?anio=" + cuota.getAnio() + "&mes=" + cuota.getMes();
     }
 
     private Integer parseEntero(String valor) {

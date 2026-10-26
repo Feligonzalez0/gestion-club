@@ -4,6 +4,8 @@ Sistema web para la gestión administrativa de un club deportivo.
 
 Permite administrar socios, cuotas y pagos, además de consultar la ficha de cada socio y configurar los valores de las cuotas según la categoría.
 
+mvn clean spring-boot:run
+
 ## Tecnologías
 
 * Java 21

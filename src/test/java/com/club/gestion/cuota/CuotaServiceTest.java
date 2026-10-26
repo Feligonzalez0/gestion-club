@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -167,6 +168,156 @@ class CuotaServiceTest {
         // Febrero de 2026 (no bisiesto) tiene 28 dias: el vencimiento se
         // ajusta al ultimo dia del mes en vez de fallar con un dia 31 invalido.
         assertThat(captor.getValue().getFechaVencimiento()).isEqualTo(LocalDate.of(2026, 2, 28));
+    }
+
+    // ---------- Edicion de una cuota individual ----------
+
+    @Test
+    void actualizaImporteYVencimientoDeUnaCuotaPendiente() {
+        LocalDate nuevoVencimiento = LocalDate.now().plusDays(15);
+        cuota.setEstado(CuotaEstado.PENDIENTE);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+        when(cuotaRepository.save(any(Cuota.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Cuota datos = new Cuota();
+        datos.setImporte(7000);
+        datos.setFechaVencimiento(nuevoVencimiento);
+
+        Cuota actualizada = cuotaService.actualizar(1L, datos);
+
+        assertThat(actualizada.getImporte()).isEqualTo(7000);
+        assertThat(actualizada.getFechaVencimiento()).isEqualTo(nuevoVencimiento);
+        assertThat(actualizada.getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+        // El periodo y el socio no se tocan.
+        assertThat(actualizada.getAnio()).isEqualTo(2026);
+        assertThat(actualizada.getMes()).isEqualTo(3);
+        assertThat(actualizada.getSocio()).isEqualTo(socio);
+    }
+
+    @Test
+    void prorrogarElVencimientoDeUnaCuotaVencidaLaVuelveAPendiente() {
+        cuota.setEstado(CuotaEstado.VENCIDA);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+        when(cuotaRepository.save(any(Cuota.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Cuota datos = new Cuota();
+        datos.setImporte(5000);
+        datos.setFechaVencimiento(LocalDate.now().plusDays(10));
+
+        Cuota actualizada = cuotaService.actualizar(1L, datos);
+
+        assertThat(actualizada.getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void unVencimientoYaPasadoDejaLaCuotaVencida() {
+        cuota.setEstado(CuotaEstado.PENDIENTE);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+        when(cuotaRepository.save(any(Cuota.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Cuota datos = new Cuota();
+        datos.setImporte(5000);
+        datos.setFechaVencimiento(LocalDate.now().minusDays(3));
+
+        Cuota actualizada = cuotaService.actualizar(1L, datos);
+
+        assertThat(actualizada.getEstado()).isEqualTo(CuotaEstado.VENCIDA);
+    }
+
+    @Test
+    void rechazaEditarUnaCuotaPagada() {
+        cuota.setEstado(CuotaEstado.PAGADA);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+
+        Cuota datos = new Cuota();
+        datos.setImporte(7000);
+        datos.setFechaVencimiento(LocalDate.now().plusDays(10));
+
+        assertThatThrownBy(() -> cuotaService.actualizar(1L, datos))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("PAGADA");
+
+        verify(cuotaRepository, never()).save(any());
+        assertThat(cuota.getImporte()).isEqualTo(5000);
+    }
+
+    @Test
+    void rechazaEditarConImporteInvalido() {
+        cuota.setEstado(CuotaEstado.PENDIENTE);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+
+        Cuota datos = new Cuota();
+        datos.setImporte(0);
+        datos.setFechaVencimiento(LocalDate.now().plusDays(10));
+
+        assertThatThrownBy(() -> cuotaService.actualizar(1L, datos))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(cuotaRepository, never()).save(any());
+    }
+
+    @Test
+    void editarUnaCuotaInexistenteLanzaNoSuchElement() {
+        when(cuotaRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cuotaService.actualizar(99L, new Cuota()))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    // ---------- Anulacion de una cuota individual ----------
+
+    @Test
+    void anulaUnaCuotaPendiente() {
+        cuota.setEstado(CuotaEstado.PENDIENTE);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+
+        cuotaService.anular(1L);
+
+        verify(cuotaRepository).delete(cuota);
+    }
+
+    @Test
+    void anulaUnaCuotaVencida() {
+        cuota.setEstado(CuotaEstado.VENCIDA);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+
+        cuotaService.anular(1L);
+
+        verify(cuotaRepository).delete(cuota);
+    }
+
+    @Test
+    void rechazaAnularUnaCuotaPagada() {
+        cuota.setEstado(CuotaEstado.PAGADA);
+        when(cuotaRepository.findById(1L)).thenReturn(Optional.of(cuota));
+
+        assertThatThrownBy(() -> cuotaService.anular(1L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("PAGADA");
+
+        verify(cuotaRepository, never()).delete(any());
+    }
+
+    @Test
+    void anularUnaCuotaInexistenteLanzaNoSuchElement() {
+        when(cuotaRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cuotaService.anular(99L))
+                .isInstanceOf(NoSuchElementException.class);
+
+        verify(cuotaRepository, never()).delete(any());
+    }
+
+    @Test
+    void soloLasCuotasNoPagadasSonModificables() {
+        cuota.setEstado(CuotaEstado.PENDIENTE);
+        assertThat(cuotaService.esModificable(cuota)).isTrue();
+
+        cuota.setEstado(CuotaEstado.VENCIDA);
+        assertThat(cuotaService.esModificable(cuota)).isTrue();
+
+        cuota.setEstado(CuotaEstado.PAGADA);
+        assertThat(cuotaService.esModificable(cuota)).isFalse();
     }
 
     // ---------- Filtro del listado ----------

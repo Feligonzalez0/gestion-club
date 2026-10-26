@@ -16,6 +16,8 @@ import com.club.gestion.configuracion.ConfiguracionService;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * Logica de negocio relacionada a las cuotas.
@@ -110,6 +112,76 @@ public class CuotaService {
         }
 
         return generadas;
+    }
+
+    /**
+     * Busca una cuota junto con su socio (para el formulario de edicion).
+     */
+    public Optional<Cuota> buscarPorId(Long id) {
+        return cuotaRepository.buscarPorIdConSocio(id);
+    }
+
+    /**
+     * Una cuota solo se puede editar o anular mientras no este PAGADA
+     * (es decir, si esta PENDIENTE o VENCIDA). Si ya tiene un pago, primero
+     * hay que anular ese pago, lo que la devuelve a PENDIENTE.
+     */
+    public boolean esModificable(Cuota cuota) {
+        return cuota.getEstado() != CuotaEstado.PAGADA;
+    }
+
+    /**
+     * Corrige el importe y/o el vencimiento de una cuota individual ya
+     * generada. El periodo y el socio no se pueden cambiar.
+     *
+     * El estado se mantiene coherente con el nuevo vencimiento, con la misma
+     * regla que aplica {@link #actualizarCuotasVencidas()}: una cuota cuyo
+     * vencimiento ya paso queda VENCIDA; si no, PENDIENTE (por ejemplo, al
+     * prorrogar el vencimiento de una cuota vencida vuelve a PENDIENTE).
+     */
+    @Transactional
+    public Cuota actualizar(Long id, Cuota datos) {
+        Cuota cuota = cuotaRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("La cuota no existe."));
+
+        verificarModificable(cuota, "editar");
+
+        if (datos.getImporte() == null || datos.getImporte() <= 0) {
+            throw new IllegalArgumentException("El importe debe ser mayor a cero.");
+        }
+        if (datos.getFechaVencimiento() == null) {
+            throw new IllegalArgumentException("El vencimiento es obligatorio.");
+        }
+
+        cuota.setImporte(datos.getImporte());
+        cuota.setFechaVencimiento(datos.getFechaVencimiento());
+        cuota.setEstado(datos.getFechaVencimiento().isBefore(LocalDate.now())
+                ? CuotaEstado.VENCIDA
+                : CuotaEstado.PENDIENTE);
+
+        return cuotaRepository.save(cuota);
+    }
+
+    /**
+     * Da de baja una cuota individual (por ejemplo, una generada por error).
+     * Solo se permite si no esta PAGADA. Se elimina el registro: si se vuelven
+     * a generar las cuotas de ese periodo, se creara de nuevo para el socio.
+     */
+    @Transactional
+    public void anular(Long id) {
+        Cuota cuota = cuotaRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("La cuota no existe."));
+
+        verificarModificable(cuota, "anular");
+
+        cuotaRepository.delete(cuota);
+    }
+
+    private void verificarModificable(Cuota cuota, String accion) {
+        if (!esModificable(cuota)) {
+            throw new IllegalArgumentException(
+                    "No se puede " + accion + " una cuota PAGADA. Anule primero el pago asociado.");
+        }
     }
 
     /**

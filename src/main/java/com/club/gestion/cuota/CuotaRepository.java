@@ -123,4 +123,15 @@ public interface CuotaRepository extends JpaRepository<Cuota, Long> {
         WHERE c.estado = :estado
     """)
     List<Cuota> findByEstadoConSocio(@Param("estado") CuotaEstado estado);
+
+    // Trae una cuota junto con su socio en la misma consulta, para poder
+    // mostrarla en el formulario de edicion sin depender de carga perezosa
+    // (open-in-view esta deshabilitado).
+    @Query("""
+        SELECT c
+        FROM Cuota c
+        JOIN FETCH c.socio
+        WHERE c.id = :id
+    """)
+    Optional<Cuota> buscarPorIdConSocio(@Param("id") Long id);
 }
