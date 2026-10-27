@@ -106,16 +106,27 @@ public class SocioController {
                             .findFirst()
                             .orElse(historialCuotas.isEmpty() ? null : historialCuotas.get(0));
 
-                    long cuotasPendientes = historialCuotas.stream()
-                            .filter(c -> c.getEstado() == CuotaEstado.PENDIENTE)
-                            .count();
+                    // Cuotas pendientes o vencidas
+                    List<Cuota> cuotasAdeudadas = historialCuotas.stream()
+                            .filter(c -> c.getEstado() == CuotaEstado.PENDIENTE
+                                    || c.getEstado() == CuotaEstado.VENCIDA)
+                            .toList();
+
+                    long cuotasPendientes = cuotasAdeudadas.size();
+
+                    // Monto total adeudado
+                    int montoAdeudado = cuotasAdeudadas.stream()
+                            .mapToInt(Cuota::getImporte)
+                            .sum();
 
                     long cuotasPagadasEsteAnio = historialCuotas.stream()
-                            .filter(c -> c.getEstado() == CuotaEstado.PAGADA && c.getAnio() == anioActual)
+                            .filter(c -> c.getEstado() == CuotaEstado.PAGADA
+                                    && c.getAnio() == anioActual)
                             .count();
 
                     int totalAbonadoEsteAnio = historialPagos.stream()
-                            .filter(p -> p.getFechaPago() != null && p.getFechaPago().getYear() == anioActual)
+                            .filter(p -> p.getFechaPago() != null
+                                    && p.getFechaPago().getYear() == anioActual)
                             .mapToInt(Pago::getImporte)
                             .sum();
 
@@ -123,11 +134,14 @@ public class SocioController {
                             .filter(c -> c.getEstado() == CuotaEstado.PAGADA)
                             .map(Cuota::getId)
                             .collect(Collectors.toList());
-                    Map<Long, Long> pagoIdPorCuota = pagoService.mapearPagoIdPorCuotaId(idsCuotasPagadas);
+
+                    Map<Long, Long> pagoIdPorCuota =
+                            pagoService.mapearPagoIdPorCuotaId(idsCuotasPagadas);
 
                     model.addAttribute("socio", socio);
                     model.addAttribute("cuotaActual", cuotaActual);
                     model.addAttribute("cuotasPendientes", cuotasPendientes);
+                    model.addAttribute("montoAdeudado", montoAdeudado);
                     model.addAttribute("cuotasPagadasEsteAnio", cuotasPagadasEsteAnio);
                     model.addAttribute("totalAbonadoEsteAnio", totalAbonadoEsteAnio);
                     model.addAttribute("historialCuotas", historialCuotas);
@@ -135,14 +149,16 @@ public class SocioController {
                     model.addAttribute("pagoIdPorCuota", pagoIdPorCuota);
                     model.addAttribute("anioActual", anioActual);
                     model.addAttribute("mesActual", mesActual);
+
                     return "socios/detalle";
                 })
                 .orElseGet(() -> {
-                    redirectAttributes.addFlashAttribute("mensajeError", "Socio no encontrado.");
+                    redirectAttributes.addFlashAttribute(
+                            "mensajeError", "Socio no encontrado.");
                     return "redirect:/socios";
                 });
     }
-
+    
     @PostMapping
     public String crear(@Valid @ModelAttribute("socioForm") SocioForm socioForm,
                          BindingResult bindingResult,
