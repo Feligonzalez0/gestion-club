@@ -1,7 +1,11 @@
 package com.club.gestion.cuota;
 
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -9,6 +13,7 @@ import java.util.stream.Collectors;
 
 import jakarta.validation.Valid;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +28,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.club.gestion.configuracion.ConfiguracionService;
 import com.club.gestion.pago.PagoService;
+import com.club.gestion.socio.Socio;
+import com.club.gestion.socio.SocioService;
 
 @Controller
 @RequestMapping("/cuotas")
@@ -32,12 +40,21 @@ public class CuotaController {
     // Cantidad de cuotas que se muestran por pagina en el listado.
     private static final int TAMANIO_PAGINA = 20;
 
+    private static final Locale LOCALE_ES = Locale.forLanguageTag("es-AR");
+
     private final CuotaService cuotaService;
     private final PagoService pagoService;
+    private final SocioService socioService;
+    private final ConfiguracionService configuracionService;
 
-    public CuotaController(CuotaService cuotaService, PagoService pagoService) {
+    public CuotaController(CuotaService cuotaService,
+                           PagoService pagoService,
+                           SocioService socioService,
+                           ConfiguracionService configuracionService) {
         this.cuotaService = cuotaService;
         this.pagoService = pagoService;
+        this.socioService = socioService;
+        this.configuracionService = configuracionService;
     }
 
     @GetMapping
@@ -96,6 +113,61 @@ public class CuotaController {
         redirectAttributes.addFlashAttribute("mensajeExito",
                 generadas + " cuota(s) generada(s) para el periodo " + mesVal + "/" + anioVal + ".");
         return "redirect:/cuotas?anio=" + anioVal + "&mes=" + mesVal;
+    }
+
+    @GetMapping("/nueva")
+    public String nuevaFormulario(Model model) {
+        LocalDate hoy = LocalDate.now();
+
+        CuotaNuevaForm form = new CuotaNuevaForm();
+        form.setAnio(hoy.getYear());
+        form.setMes(hoy.getMonthValue());
+
+        model.addAttribute("cuotaNuevaForm", form);
+        cargarDatosFormularioNuevo(model);
+
+        return "cuotas/nueva";
+    }
+
+    @PostMapping
+    public String crear(@Valid @ModelAttribute("cuotaNuevaForm") CuotaNuevaForm cuotaNuevaForm,
+                        BindingResult bindingResult,
+                        Model model,
+                        RedirectAttributes redirectAttributes) {
+
+        if (bindingResult.hasErrors()) {
+            cargarDatosFormularioNuevo(model);
+            return "cuotas/nueva";
+        }
+
+        Optional<Socio> socioOpt = socioService.buscarPorId(cuotaNuevaForm.getSocioId());
+
+        if (socioOpt.isEmpty()) {
+            return volverAlFormularioNuevo(model, "El socio seleccionado no existe.");
+        }
+
+        Socio socio = socioOpt.get();
+
+        try {
+            cuotaService.crear(cuotaNuevaForm.aCuota(socio));
+
+        } catch (IllegalArgumentException ex) {
+            return volverAlFormularioNuevo(model, ex.getMessage());
+
+        } catch (DataIntegrityViolationException ex) {
+            return volverAlFormularioNuevo(model,
+                    "Ya existe una cuota para ese socio en el periodo indicado.");
+        }
+
+        // Si el vencimiento cargado ya paso, la cuota queda VENCIDA (la nueva
+        // cuota nace PENDIENTE; se aplica la misma regla que usa el listado).
+        cuotaService.actualizarCuotasVencidas();
+
+        redirectAttributes.addFlashAttribute("mensajeExito",
+                "Cuota creada para " + socio.getApellido() + ", " + socio.getNombre()
+                        + " (" + cuotaNuevaForm.getMes() + "/" + cuotaNuevaForm.getAnio() + ").");
+
+        return "redirect:/cuotas?anio=" + cuotaNuevaForm.getAnio() + "&mes=" + cuotaNuevaForm.getMes();
     }
 
     @GetMapping("/{id}/editar")
@@ -176,6 +248,34 @@ public class CuotaController {
         }
 
         return redirectAlPeriodo(cuota);
+    }
+
+    // Vuelve a mostrar el formulario de alta con un error de negocio.
+    private String volverAlFormularioNuevo(Model model, String errorNegocio) {
+        cargarDatosFormularioNuevo(model);
+        model.addAttribute("errorNegocio", errorNegocio);
+        return "cuotas/nueva";
+    }
+
+    // Datos que necesita el formulario de alta: socios activos, el importe
+    // sugerido de cada uno segun su categoria, el dia de vencimiento
+    // configurado (para precargar el vencimiento) y los nombres de los meses.
+    private void cargarDatosFormularioNuevo(Model model) {
+        List<Socio> sociosActivos = socioService.listarActivos();
+
+        model.addAttribute("sociosActivos", sociosActivos);
+        model.addAttribute("importesSugeridos", cuotaService.importesSugeridos(sociosActivos));
+        model.addAttribute("diaVencimiento", configuracionService.obtener().getDiaVencimiento());
+        model.addAttribute("meses", nombresDeMeses());
+    }
+
+    private Map<Integer, String> nombresDeMeses() {
+        Map<Integer, String> meses = new LinkedHashMap<>();
+        for (Month mes : Month.values()) {
+            String nombre = mes.getDisplayName(TextStyle.FULL, LOCALE_ES);
+            meses.put(mes.getValue(), nombre.substring(0, 1).toUpperCase(LOCALE_ES) + nombre.substring(1));
+        }
+        return meses;
     }
 
     // Vuelve a mostrar el formulario de edicion (error de validacion o de

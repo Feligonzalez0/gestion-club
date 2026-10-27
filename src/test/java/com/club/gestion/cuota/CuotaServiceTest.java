@@ -1,6 +1,8 @@
 package com.club.gestion.cuota;
 
+import com.club.gestion.configuracion.Configuracion;
 import com.club.gestion.socio.Socio;
+import com.club.gestion.socio.SocioCategoria;
 import com.club.gestion.socio.SocioEstado;
 import com.club.gestion.socio.SocioService;
 import com.club.gestion.configuracion.ConfiguracionService;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -21,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -168,6 +172,40 @@ class CuotaServiceTest {
         // Febrero de 2026 (no bisiesto) tiene 28 dias: el vencimiento se
         // ajusta al ultimo dia del mes en vez de fallar con un dia 31 invalido.
         assertThat(captor.getValue().getFechaVencimiento()).isEqualTo(LocalDate.of(2026, 2, 28));
+    }
+
+    // ---------- Alta individual: valores sugeridos ----------
+
+    @Test
+    void sugiereElImporteDeCadaSocioSegunSuCategoria() {
+        // Se usa un ConfiguracionService propio de este test (no el campo de la clase).
+        ConfiguracionService configService = mock(ConfiguracionService.class);
+        CuotaService servicio = new CuotaService(cuotaRepository, socioService, configService);
+
+        Configuracion configuracion = new Configuracion();
+        configuracion.setImporteCuotaMayor(5000);
+        configuracion.setImporteCuotaMenor(3000);
+        configuracion.setImporteCuotaJubilado(2000);
+        when(configService.obtener()).thenReturn(configuracion);
+
+        Socio mayor = socioConCategoria(1L, SocioCategoria.MAYOR);
+        Socio menor = socioConCategoria(2L, SocioCategoria.MENOR);
+        Socio jubilado = socioConCategoria(3L, SocioCategoria.JUBILADO);
+
+        Map<Long, Integer> importes = servicio.importesSugeridos(List.of(mayor, menor, jubilado));
+
+        assertThat(importes).containsEntry(1L, 5000)
+                .containsEntry(2L, 3000)
+                .containsEntry(3L, 2000)
+                .hasSize(3);
+    }
+
+    private Socio socioConCategoria(Long id, SocioCategoria categoria) {
+        Socio s = new Socio();
+        s.setId(id);
+        s.setEstado(SocioEstado.ACTIVO);
+        s.setCategoria(categoria);
+        return s;
     }
 
     // ---------- Edicion de una cuota individual ----------

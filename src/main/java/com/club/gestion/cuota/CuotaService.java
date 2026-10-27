@@ -15,7 +15,9 @@ import com.club.gestion.configuracion.ConfiguracionService;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -112,6 +114,22 @@ public class CuotaService {
         }
 
         return generadas;
+    }
+
+    /**
+     * Importe sugerido de la cuota de cada socio segun su categoria, tomado
+     * de la configuracion vigente (mismo criterio que la generacion mensual).
+     * Se usa para precargar el importe al crear una cuota individual.
+     * Devuelve un mapa idSocio -> importe.
+     */
+    public Map<Long, Integer> importesSugeridos(List<Socio> socios) {
+        Configuracion configuracion = configuracionService.obtener();
+
+        Map<Long, Integer> importes = new HashMap<>();
+        for (Socio socio : socios) {
+            importes.put(socio.getId(), obtenerImporteSegunCategoria(socio, configuracion));
+        }
+        return importes;
     }
 
     /**

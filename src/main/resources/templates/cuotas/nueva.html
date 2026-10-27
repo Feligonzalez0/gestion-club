@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Nueva cuota - Club</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}"/>
+</head>
+<body>
+<header th:replace="~{fragments/nav :: nav}"></header>
+<main class="container">
+    <h1>Nueva cuota</h1>
+
+    <p class="text-muted">
+        Crea una cuota individual para un socio activo en un período puntual (por ejemplo, un socio
+        que se asoció después de generar las cuotas del mes). Para cargar todo un período a la vez,
+        usá <a th:href="@{/cuotas}">Generar cuotas</a>.
+    </p>
+
+    <div class="alert alert-danger" th:if="${errorNegocio}" th:text="${errorNegocio}"></div>
+
+    <div class="alert alert-warning" th:if="${#lists.isEmpty(sociosActivos)}">
+        No hay socios activos a quienes crearles una cuota.
+    </div>
+
+    <form method="post"
+          th:action="@{/cuotas}"
+          th:object="${cuotaNuevaForm}"
+          th:attr="data-dia-vencimiento=${diaVencimiento}">
+
+        <div class="row">
+
+            <!-- Socio -->
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="socioId">Socio</label>
+                <select class="form-select"
+                        id="socioId"
+                        th:field="*{socioId}"
+                        required="required"
+                        th:disabled="${#lists.isEmpty(sociosActivos)}">
+                    <option value="">Seleccionar socio...</option>
+                    <option th:each="socio : ${sociosActivos}"
+                            th:value="${socio.id}"
+                            th:attr="data-importe=${importesSugeridos.get(socio.id)}"
+                            th:text="|${socio.apellido}, ${socio.nombre} (N° ${socio.numeroSocio}) — ${socio.categoria}|">
+                    </option>
+                </select>
+                <div class="text-danger small" th:if="${#fields.hasErrors('socioId')}" th:errors="*{socioId}"></div>
+            </div>
+
+            <!-- Mes -->
+            <div class="col-md-3 mb-3">
+                <label class="form-label" for="mes">Mes</label>
+                <select class="form-select" id="mes" th:field="*{mes}" required="required">
+                    <option th:each="m : ${meses}" th:value="${m.key}" th:text="${m.value}"></option>
+                </select>
+                <div class="text-danger small" th:if="${#fields.hasErrors('mes')}" th:errors="*{mes}"></div>
+            </div>
+
+            <!-- Año -->
+            <div class="col-md-3 mb-3">
+                <label class="form-label" for="anio">Año</label>
+                <input type="number" step="1" min="2000" max="2100" class="form-control" id="anio"
+                       th:field="*{anio}" required="required"/>
+                <div class="text-danger small" th:if="${#fields.hasErrors('anio')}" th:errors="*{anio}"></div>
+            </div>
+        </div>
+
+        <div class="row">
+
+            <!-- Importe -->
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="importe">Importe</label>
+                <input type="number" step="1" min="1" class="form-control" id="importe"
+                       th:field="*{importe}" required="required"/>
+                <div class="text-danger small" th:if="${#fields.hasErrors('importe')}" th:errors="*{importe}"></div>
+                <div class="form-text">
+                    Se precarga según la categoría del socio (valores de Configuración). Podés modificarlo.
+                </div>
+            </div>
+
+            <!-- Vencimiento -->
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="fechaVencimiento">Vencimiento</label>
+                <input type="date" class="form-control" id="fechaVencimiento"
+                       th:field="*{fechaVencimiento}" required="required"/>
+                <div class="text-danger small" th:if="${#fields.hasErrors('fechaVencimiento')}"
+                     th:errors="*{fechaVencimiento}"></div>
+                <div class="form-text">
+                    Se precarga según el día de vencimiento configurado para el período elegido.
+                    Si la fecha ya pasó, la cuota quedará VENCIDA; si no, PENDIENTE.
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary"
+                th:disabled="${#lists.isEmpty(sociosActivos)}">
+            Guardar
+        </button>
+        <a th:href="@{/cuotas}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</main>
+
+<script th:src="@{/js/cuotas-nueva.js}"></script>
+</body>
+</html>
